@@ -2,6 +2,7 @@ package runner
 
 import (
 	"errors"
+	"github.com/0x3639/go-zenon-pillar-version/internal/httpapi"
 	"os"
 	"strconv"
 	"strings"
@@ -11,7 +12,7 @@ import (
 )
 
 const UpstreamRevision = "bb39e31c608dc397a91b98b21b096bca99a9f4d6"
-const Release = "0.1.0-feasibility"
+const Release = "0.2.0-collector"
 
 type Config struct {
 	ObserverID      string
@@ -22,6 +23,9 @@ type Config struct {
 	RPCURLs         []string
 	Ingress, Egress uint64
 	DataBudget      int64
+	Mode            string
+	Port, Retention int
+	Origins         []string
 }
 
 func env(key, def string) string {
@@ -43,6 +47,28 @@ func Load() (Config, error) {
 		return c, errors.New("OBSERVER_ID too long")
 	}
 	var e error
+	c.Mode = env("MODE", "service")
+	if c.Mode != "service" && c.Mode != "feasibility" {
+		return c, errors.New("MODE must be service or feasibility")
+	}
+	c.Port, e = number("PORT", 8080, 1, 65535)
+	if e != nil {
+		return c, e
+	}
+	c.Retention, e = number("RAW_RETENTION_DAYS", 7, 1, 7)
+	if e != nil {
+		return c, e
+	}
+	for _, origin := range strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",") {
+		origin = strings.TrimSpace(origin)
+		if origin == "" {
+			continue
+		}
+		if !httpapi.ValidOrigin(origin) {
+			return c, errors.New("ALLOWED_ORIGINS must contain exact HTTP(S) origins without paths")
+		}
+		c.Origins = append(c.Origins, origin)
+	}
 	c.MaxPeers, e = number("MAX_PEERS", 4, 1, 8)
 	if e != nil {
 		return c, e
@@ -50,9 +76,13 @@ func Load() (Config, error) {
 	if env("MAX_DIALS", "1") != "1" || env("PEER_ROTATION_ENABLED", "false") != "false" {
 		return c, errors.New("milestone 1 requires MAX_DIALS=1 and rotation disabled")
 	}
-	c.Duration, e = time.ParseDuration(env("RUN_DURATION", "65m"))
-	if e != nil || c.Duration < time.Second || c.Duration > 2*time.Hour {
-		return c, errors.New("RUN_DURATION must be 1s–2h for the bounded experiment")
+	defaultDuration := "0s"
+	if c.Mode == "feasibility" {
+		defaultDuration = "65m"
+	}
+	c.Duration, e = time.ParseDuration(env("RUN_DURATION", defaultDuration))
+	if e != nil || c.Duration < 0 || (c.Duration > 0 && c.Duration < time.Second) || c.Duration > 48*time.Hour || (c.Mode == "feasibility" && (c.Duration < time.Second || c.Duration > 2*time.Hour)) {
+		return c, errors.New("RUN_DURATION must be 0s (continuous service) or 1s–48h; feasibility requires 1s–2h")
 	}
 	for _, item := range strings.Split(os.Getenv("PEER_SEEDS"), ",") {
 		if strings.TrimSpace(item) == "" {

@@ -1,0 +1,11 @@
+?   	github.com/0x3639/go-zenon-pillar-version/cmd/observer	[no test files]
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/capture	1.073s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/httpapi	1.063s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/limits	1.265s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/netguard	1.020s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/protocol	1.059s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/reference	1.786s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/runner	3.176s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/storage	1.224s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/transport	1.014s
+ok  	github.com/0x3639/go-zenon-pillar-version/internal/runner	2.115s

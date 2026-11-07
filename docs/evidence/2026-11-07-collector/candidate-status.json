@@ -1,0 +1,213 @@
+{
+  "dataQuality": {
+    "absenceMeansOffline": false,
+    "analysisState": "not_implemented",
+    "associationStatus": "insufficient_data",
+    "captureDropsInOverlappingRuns": 0,
+    "captureState": "observing",
+    "clockJumpsInOverlappingRuns": 0,
+    "consensusValidated": false,
+    "interruptedRuns": 0,
+    "legacyFeasibilityImported": false,
+    "producerSoftwareVersion": null,
+    "rankingsAvailable": false,
+    "rawHistoryAvailableFrom": "2026-10-31T16:34:00Z",
+    "rawRetentionDays": 7,
+    "ready": true,
+    "recordedGapAndConnectionEvents": 0,
+    "statusUpdatedAt": "2026-11-07T16:34:07.556308024Z"
+  },
+  "generatedAt": "2026-11-07T16:34:07.556308024Z",
+  "methodVersion": "collection-1",
+  "observerId": "local-collector-validation",
+  "result": {
+    "aggregateRetentionImplemented": false,
+    "arrivalLimitReached": false,
+    "arrivalsByKind": {
+      "full_broadcast": 11,
+      "hash_announcement": 22,
+      "requested_response": 13
+    },
+    "bootId": "261a22c3fa44672e71e50223164b3c6c",
+    "captureDrops": 0,
+    "captureState": "observing",
+    "clockJumps": 0,
+    "configurationFingerprint": "f967043ca7fffa5c8f3e5f1398f2b8a77eeff46632149619d5b6224b26e80773",
+    "configuredPeers": 4,
+    "connectedPeers": 4,
+    "dataBudgetBytes": 2147483648,
+    "distinctCheckedLiveMomentums": 6,
+    "distinctCheckedLiveMomentumsSeenFromTwoPeers": 5,
+    "duplicateCount": 12,
+    "excludedByReason": {
+      "requested_response": 13,
+      "warmup": 4
+    },
+    "final": false,
+    "generatedAt": "2026-11-07T16:34:07.556180648Z",
+    "maintenanceError": "",
+    "maxTwoSessionOverlapSeconds": 61.869549173,
+    "metadataBytesCommittedThisBoot": 358452,
+    "methodVersion": "collection-1",
+    "mode": "service",
+    "observerId": "local-collector-validation",
+    "pillarSnapshotError": "",
+    "producerSoftwareVersion": null,
+    "queueDepth": 0,
+    "rankingAvailable": false,
+    "rawRetentionDays": 7,
+    "reconciliation": {
+      "checkedAt": "2026-11-07T16:33:08.550081084Z",
+      "continuityEstablished": true,
+      "disputedHeights": 0,
+      "endHeight": 14608480,
+      "error": "",
+      "reorganized": false,
+      "sources": [
+        "wss://my.hc1node.com:35998",
+        "wss://node.zenonhub.io:35998"
+      ],
+      "startHeight": 14608301,
+      "state": "rpc_agreed"
+    },
+    "referenceError": "",
+    "referenceObservedAt": "2026-11-07T16:34:03.64972294Z",
+    "release": "0.2.0-collector",
+    "schemaMigrationVersion": 1,
+    "schemaVersion": "1.0",
+    "sessions": [
+      {
+        "advertisedVersion": "0.0.8",
+        "capabilities": [
+          "eth/61"
+        ],
+        "clientName": "v0.0.8 znn-node",
+        "connectedAt": "2026-11-07T16:33:04.619739534Z",
+        "disconnectReason": "",
+        "disconnectedAt": null,
+        "disconnectedMonoNs": 0,
+        "ip": "51.81.209.53",
+        "peerId": "0316e6152bed5773850c72a79a8eed9c4dd72966d6f5101e860fa73da6c9a064701964cf3e0a09420a60c38000497af4c43c0e1374bfe5120dee0180f7bc30ed",
+        "port": 35995,
+        "sessionId": "261a22c3fa44672e71e50223164b3c6c-1",
+        "statusCompletedAt": "2026-11-07T16:33:04.771180447Z",
+        "statusCompletedMonoNs": 1222254070,
+        "statusReference": {
+          "hash": "12f3ba46264361604715d324caa1723b521380d5a3c47ee74992ea62e3c0f39c",
+          "height": 14608480,
+          "previousHash": "34a6f0bf5ddaeefcc02dbc33907115c1e974298189808c9f13793e78e7ffb75f",
+          "producerAddress": "z1qph05gprn2wr5nacad2yq0yyfzqthxeau4clnl",
+          "protocolVersion": 1,
+          "source": "wss://my.hc1node.com:35998",
+          "timestamp": 1794069180,
+          "verificationState": "rpc_observed"
+        }
+      },
+      {
+        "advertisedVersion": "0.0.9",
+        "capabilities": [
+          "eth/61"
+        ],
+        "clientName": "v0.0.9 znn-node",
+        "connectedAt": "2026-11-07T16:33:05.598157397Z",
+        "disconnectReason": "",
+        "disconnectedAt": null,
+        "disconnectedMonoNs": 0,
+        "ip": "23.95.73.26",
+        "peerId": "072792b916d53179692b01d3d60b38f6fcb37fa8f4bf111b55007546035f2a5244b269c8875a22e422cc336df6784659f67026107d96225c250d47eacbe9d7a1",
+        "port": 35995,
+        "sessionId": "261a22c3fa44672e71e50223164b3c6c-2",
+        "statusCompletedAt": "2026-11-07T16:33:05.686631559Z",
+        "statusCompletedMonoNs": 2137705140,
+        "statusReference": {
+          "hash": "12f3ba46264361604715d324caa1723b521380d5a3c47ee74992ea62e3c0f39c",
+          "height": 14608480,
+          "previousHash": "34a6f0bf5ddaeefcc02dbc33907115c1e974298189808c9f13793e78e7ffb75f",
+          "producerAddress": "z1qph05gprn2wr5nacad2yq0yyfzqthxeau4clnl",
+          "protocolVersion": 1,
+          "source": "wss://my.hc1node.com:35998",
+          "timestamp": 1794069180,
+          "verificationState": "rpc_observed"
+        }
+      },
+      {
+        "advertisedVersion": "0.0.8",
+        "capabilities": [
+          "eth/61"
+        ],
+        "clientName": "v0.0.8 znn-node",
+        "connectedAt": "2026-11-07T16:33:06.591054529Z",
+        "disconnectReason": "",
+        "disconnectedAt": null,
+        "disconnectedMonoNs": 0,
+        "ip": "135.148.32.194",
+        "peerId": "0c5213f89c748aab5c39e63bdc65bd97bf446a5229e640086e2784217d24731d78ab53ee5316619dc4299ab759304c5859272d35cfab74fd9106753e0db3d14e",
+        "port": 35995,
+        "sessionId": "261a22c3fa44672e71e50223164b3c6c-3",
+        "statusCompletedAt": "2026-11-07T16:33:06.664194544Z",
+        "statusCompletedMonoNs": 3115268167,
+        "statusReference": {
+          "hash": "12f3ba46264361604715d324caa1723b521380d5a3c47ee74992ea62e3c0f39c",
+          "height": 14608480,
+          "previousHash": "34a6f0bf5ddaeefcc02dbc33907115c1e974298189808c9f13793e78e7ffb75f",
+          "producerAddress": "z1qph05gprn2wr5nacad2yq0yyfzqthxeau4clnl",
+          "protocolVersion": 1,
+          "source": "wss://my.hc1node.com:35998",
+          "timestamp": 1794069180,
+          "verificationState": "rpc_observed"
+        }
+      },
+      {
+        "advertisedVersion": "0.0.9",
+        "capabilities": [
+          "eth/61"
+        ],
+        "clientName": "v0.0.9 znn-node",
+        "connectedAt": "2026-11-07T16:33:07.798020988Z",
+        "disconnectReason": "",
+        "disconnectedAt": null,
+        "disconnectedMonoNs": 0,
+        "ip": "51.79.146.74",
+        "peerId": "0ee6563a924a42912ab47fe87503f205527c4e8d9ffb1fd5a1a11a81a6d92f1f0df5a697e90cbdd23376bc1ccf4902ed5a23290aa4d1b5b10a40ac11e13190c4",
+        "port": 35995,
+        "sessionId": "261a22c3fa44672e71e50223164b3c6c-4",
+        "statusCompletedAt": "2026-11-07T16:33:08.287722939Z",
+        "statusCompletedMonoNs": 4738796562,
+        "statusReference": {
+          "hash": "12f3ba46264361604715d324caa1723b521380d5a3c47ee74992ea62e3c0f39c",
+          "height": 14608480,
+          "previousHash": "34a6f0bf5ddaeefcc02dbc33907115c1e974298189808c9f13793e78e7ffb75f",
+          "producerAddress": "z1qph05gprn2wr5nacad2yq0yyfzqthxeau4clnl",
+          "protocolVersion": 1,
+          "source": "wss://my.hc1node.com:35998",
+          "timestamp": 1794069180,
+          "verificationState": "rpc_observed"
+        }
+      }
+    ],
+    "statisticsWindowSeconds": 600,
+    "storage": {
+      "filesystemFreeBytes": 1702852538368,
+      "filesystemTotalBytes": 1995165736960,
+      "minimumFreeBytes": 199516573696,
+      "usedBytes": 1337484
+    },
+    "storageCheckError": "",
+    "storageError": "",
+    "traffic": {
+      "actualEgressBytesThisBoot": 5548,
+      "actualIngressBytesThisBoot": 13640,
+      "egressLimit": 52428800,
+      "ingressLimit": 262144000,
+      "pausedUntil": "0001-01-01T00:00:00Z",
+      "persistenceError": null,
+      "reservedEgressBytesRollingHour": 131072,
+      "reservedIngressBytesRollingHour": 131072
+    },
+    "upstreamRevision": "bb39e31c608dc397a91b98b21b096bca99a9f4d6",
+    "windowStart": "2026-11-07T16:33:03.548926378Z"
+  },
+  "schemaVersion": "1.0",
+  "windowEnd": "2026-11-07T16:34:00Z",
+  "windowStart": "2026-11-06T16:34:00Z"
+}

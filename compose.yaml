@@ -2,11 +2,26 @@ name: zenon-p2p-observer
 services:
   observer:
     build: .
-    image: zenon-p2p-observer:feasibility
-    env_file: .env
+    image: zenon-p2p-observer:0.2.0
     environment:
       DATA_DIR: /data
       GOMEMLIMIT: 320MiB
+      MODE: service
+      PORT: 8080
+      OBSERVER_ID: ${OBSERVER_ID:?Set a stable observer identifier}
+      PEER_SEEDS: ${PEER_SEEDS:?Set explicit public peer seeds}
+      MAX_PEERS: ${MAX_PEERS:-4}
+      MAX_DIALS: 1
+      RUN_DURATION: ${RUN_DURATION:-0s}
+      PEER_ROTATION_ENABLED: "false"
+      RAW_RETENTION_DAYS: ${RAW_RETENTION_DAYS:-7}
+      DATA_BUDGET_MIB: ${DATA_BUDGET_MIB:-2048}
+      INGRESS_BUDGET_MIB_PER_HOUR: ${INGRESS_BUDGET_MIB_PER_HOUR:-250}
+      EGRESS_BUDGET_MIB_PER_HOUR: ${EGRESS_BUDGET_MIB_PER_HOUR:-50}
+      RPC_REFERENCE_URLS: ${RPC_REFERENCE_URLS:-wss://my.hc1node.com:35998,wss://node.zenonhub.io:35998,wss://node.atsocy.com:35998}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    expose:
+      - "8080"
     volumes:
       - observer-data:/data
     read_only: true
@@ -19,8 +34,13 @@ services:
     memswap_limit: 512m
     pids_limit: 64
     stop_grace_period: 20s
-    # A bounded experiment must stay stopped after completion or containment.
-    restart: "no"
+    restart: "on-failure:3"
+    healthcheck:
+      test: ["CMD", "observer", "healthcheck"]
+      interval: 30s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
     logging:
       driver: json-file
       options:

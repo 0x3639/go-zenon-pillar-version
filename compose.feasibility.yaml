@@ -1,0 +1,9 @@
+# Optional legacy finite experiment. No HTTP listener in this mode.
+services:
+  observer:
+    environment:
+      MODE: feasibility
+      RUN_DURATION: 65m
+    restart: "no"
+    healthcheck:
+      disable: true

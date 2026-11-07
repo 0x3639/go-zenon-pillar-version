@@ -1,0 +1,13 @@
+{
+  "sameIdentity": true,
+  "originalArrivalRowsPreserved": 10,
+  "unexpiredTrafficBucketsPreserved": true,
+  "oldSessionsClosed": true,
+  "connectedPeersAfterRestart": 4,
+  "captureDropsAfterRestart": 0,
+  "newBootId": "68b0fdb1f99433bbbeaca555a2c7deb2",
+  "etag304": true,
+  "allowedOriginWorks": true,
+  "checkedAt": "2026-11-07T16:39:09.527526581Z",
+  "gracefulStopSeconds": 0.163
+}

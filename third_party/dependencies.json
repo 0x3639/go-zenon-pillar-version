@@ -229,6 +229,14 @@
       "licenses": [
         "third_party/licenses/gopkg.in/natefinch/npipe.v2/v2.0.0-20160621034901-c1b8fa8bdcce/LICENSE.txt"
       ]
+    },
+    {
+      "module": "github.com/mattn/go-sqlite3",
+      "version": "v1.14.53",
+      "sum": "h1:mnTM0owzUMrKuLo+0w51NUiB0ir2Fo7kFXlPt/l3BGs=",
+      "licenses": [
+        "third_party/licenses/github.com/mattn/go-sqlite3/v1.14.53/LICENSE"
+      ]
     }
   ]
 }

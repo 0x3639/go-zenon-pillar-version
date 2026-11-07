@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
-  "methodVersion": "feasibility-1",
-  "scope": "protocol_feasibility_only",
+  "methodVersion": "collection-1",
+  "scope": "durable_collection_and_read_only_api",
   "relayPeerIsProducer": null,
   "relayIPIsPillarIP": null,
   "automaticOwnershipInference": false,
@@ -10,7 +10,7 @@
   "unknownVersion": null,
   "producerIdentity": "address_derived_from_checked_momentum_signing_public_key",
   "consensusValidated": false,
-  "rpcAgreementImplemented": false,
+  "rpcAgreementImplemented": true,
   "rankingsAvailable": false,
   "eventKinds": {
     "hash_announcement": "original P2P hash arrival, eligible only after checked resolution and live filtering",
@@ -38,5 +38,14 @@
     "captureDrops": 0,
     "clockJumps": 0,
     "requireFinalReport": true
+  },
+  "associationAnalysisImplemented": false,
+  "rawRetentionDays": 7,
+  "aggregateRetentionImplemented": false,
+  "legacyFeasibilityImported": false,
+  "verification": {
+    "rpc_agreed": "Two configured endpoints report the same checked hash and producer at that height; operator independence and consensus finality are not established.",
+    "disputed": "Reference sources disagree, a competing branch was observed, or checked signer claims conflict.",
+    "signerConflict": "Producer remains null when the same hash has conflicting checked signer claims."
   }
 }

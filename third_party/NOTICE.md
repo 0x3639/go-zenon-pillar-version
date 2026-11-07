@@ -23,3 +23,7 @@ root license notices, copied without edits under `licenses/`.
 
 When distributing binaries, provide this repository's corresponding source,
 dependency manifest, license texts and these modification notices.
+
+SQLite access uses github.com/mattn/go-sqlite3 v1.14.53 (MIT); its bundled SQLite
+amalgamation identifies itself as version 3.54.1. The driver license is included
+under licenses/github.com/mattn/go-sqlite3/v1.14.53/.

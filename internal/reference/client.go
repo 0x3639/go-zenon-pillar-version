@@ -23,11 +23,16 @@ func New(urls []string) (*Client, error) {
 	if len(urls) == 0 || len(urls) > 3 {
 		return nil, errors.New("configure 1–3 RPC references")
 	}
+	seen := map[string]bool{}
 	for _, s := range urls {
 		u, e := url.Parse(s)
 		if e != nil || u.Scheme != "wss" || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
 			return nil, errors.New("RPC endpoints must be secure wss URLs without credentials")
 		}
+		if seen[s] {
+			return nil, errors.New("RPC references must be distinct URLs")
+		}
+		seen[s] = true
 	}
 	return &Client{URLs: urls}, nil
 }

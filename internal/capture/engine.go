@@ -60,6 +60,8 @@ type Engine struct {
 	lastClock          time.Time
 	gap                bool
 	LimitReached       bool
+	// Service mode retains only ten minutes in memory. SQLite owns history.
+	Rolling bool
 }
 
 func NewEngine(observer, boot string, w *Writer) *Engine {
@@ -113,6 +115,9 @@ func (e *Engine) Observe(session string, hash types.Hash, kind string, at time.T
 	if a := e.arrivals[key]; a != nil {
 		if a.Duplicates < 65535 {
 			a.Duplicates++
+		}
+		if e.Rolling && !e.Writer.Submit(map[string]any{"type": "duplicate_summary", "sessionId": a.SessionID, "hash": a.Hash, "eventKind": a.Kind, "duplicateCount": a.Duplicates}) {
+			e.gap = true
 		}
 		return
 	}
@@ -181,6 +186,19 @@ func (e *Engine) ResolveFailed(hash types.Hash) {
 func (e *Engine) Tick(now time.Time) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.Rolling {
+		cutoff := now.Sub(e.Start).Nanoseconds() - int64(10*time.Minute)
+		for key, a := range e.arrivals {
+			if a.Mono < cutoff {
+				delete(e.arrivals, key)
+			}
+		}
+		for key, s := range e.sessions {
+			if s.Ended != nil && s.EndMono < cutoff {
+				delete(e.sessions, key)
+			}
+		}
+	}
 	wall := now.UnixNano() - e.lastClock.UnixNano()
 	mono := now.Sub(e.lastClock).Nanoseconds()
 	diff := wall - mono
@@ -191,7 +209,7 @@ func (e *Engine) Tick(now time.Time) {
 		e.ClockJumps++
 		e.clockBadUntil = now.Add(time.Minute)
 		e.gap = true
-		e.Writer.Submit(map[string]any{"type": "clock_discontinuity", "at": now.UTC(), "differenceNs": diff})
+		e.Writer.Submit(map[string]any{"type": "clock_discontinuity", "bootId": e.BootID, "at": now.UTC(), "differenceNs": diff})
 	}
 	e.lastClock = now
 	if e.Writer.Drops.Load() > 0 {
