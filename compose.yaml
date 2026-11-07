@@ -1,0 +1,30 @@
+name: zenon-p2p-observer
+services:
+  observer:
+    build: .
+    image: zenon-p2p-observer:feasibility
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      GOMEMLIMIT: 320MiB
+    volumes:
+      - observer-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 1.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 64
+    stop_grace_period: 20s
+    # A bounded experiment must stay stopped after completion or containment.
+    restart: "no"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  observer-data:

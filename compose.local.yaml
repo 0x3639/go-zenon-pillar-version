@@ -1,0 +1,9 @@
+# Local experiment uses the binary compiled by scripts/check.sh.
+# Do not use this build shortcut for a distributed release.
+services:
+  observer:
+    user: "501:20"
+    volumes:
+      - ./.work/run-data:/data
+    build:
+      dockerfile: Dockerfile.local

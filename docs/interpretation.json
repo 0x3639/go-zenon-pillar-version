@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "methodVersion": "feasibility-1",
+  "scope": "protocol_feasibility_only",
+  "relayPeerIsProducer": null,
+  "relayIPIsPillarIP": null,
+  "automaticOwnershipInference": false,
+  "advertisedVersionSubject": "remote_peer_session",
+  "producerSoftwareVersion": null,
+  "unknownVersion": null,
+  "producerIdentity": "address_derived_from_checked_momentum_signing_public_key",
+  "consensusValidated": false,
+  "rpcAgreementImplemented": false,
+  "rankingsAvailable": false,
+  "eventKinds": {
+    "hash_announcement": "original P2P hash arrival, eligible only after checked resolution and live filtering",
+    "full_broadcast": "unsolicited full payload, eligible only after local signature/hash checks and live filtering",
+    "requested_response": "matched response to this observer's explicit request; excluded from unsolicited counts",
+    "historical_or_unresolved": "unmatched response; excluded from unsolicited counts"
+  },
+  "timestamps": {
+    "arrivedAt": "observer UTC when the complete authenticated encrypted frame was available",
+    "monotonicNs": "elapsed since this process boot; compare only within the same boot",
+    "slotTimestamp": "momentum slot time, not the producer's transmission time",
+    "rpcCompletionIsArrival": false,
+    "establishedSubMillisecondAccuracy": false
+  },
+  "coverage": {
+    "absenceMeansOffline": false,
+    "warmupSeconds": 5,
+    "liveWindowSeconds": 120,
+    "samplingDiversityMeansIndependentOperators": false,
+    "feasibilityIsAssociationEvidence": false
+  },
+  "milestone1Acceptance": {
+    "continuousTwoSessionOverlapSeconds": 3600,
+    "distinctCheckedLiveMomentumsSeenFromTwoPeers": 100,
+    "captureDrops": 0,
+    "clockJumps": 0,
+    "requireFinalReport": true
+  }
+}
