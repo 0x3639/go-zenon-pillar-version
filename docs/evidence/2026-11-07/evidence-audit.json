@@ -1,0 +1,15 @@
+{
+  "evidenceConsistencyPassed": true,
+  "bootId": "8e304370b4a0f72ab3b219f90f32d18e",
+  "uniqueArrivalRecords": 1279,
+  "resolutionUpdatesPreservingOriginalTime": 448,
+  "arrivalsByKind": {
+    "full_broadcast": 172,
+    "hash_announcement": 660,
+    "requested_response": 447
+  },
+  "distinctCheckedLiveMomentumsSeenFromTwoPeers": 337,
+  "continuousTwoSessionOverlapSeconds": 3639.892152611,
+  "milestone1Passed": true,
+  "scope": "Recorded metadata consistency; signatures were checked during collection, not rechecked from stripped headers."
+}

@@ -7,6 +7,11 @@ implements **milestone 1: protocol feasibility** from [SPEC.md](SPEC.md). It
 does not run a full node, sync chain history, operate a validator, access a
 wallet, or change the existing Observatory.
 
+The [November 7 feasibility experiment](docs/feasibility-report.md) passed:
+two simultaneous public-peer sessions for over an hour, 337 checked live
+momentums seen from both peers, and zero reported capture drops. Durable
+collection and the site's read-only API are the next milestone.
+
 The first experiment maintains two or four outbound connections, negotiates
 encrypted RLPx, Hello and Zenon mainnet `eth/61` status, and records per-peer
 momentum arrivals. It resolves producer addresses by recomputing hashes and

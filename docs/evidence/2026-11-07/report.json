@@ -1,0 +1,104 @@
+{
+  "arrivalLimitReached": false,
+  "arrivalsByKind": {
+    "full_broadcast": 172,
+    "hash_announcement": 660,
+    "requested_response": 447
+  },
+  "bootId": "8e304370b4a0f72ab3b219f90f32d18e",
+  "captureDrops": 0,
+  "captureState": "stopped",
+  "clockJumps": 0,
+  "configurationFingerprint": "dece2332c5976990dad5044e73f68584f5067af57838fcb1fa1ed73e1713592f",
+  "distinctCheckedLiveMomentums": 337,
+  "distinctCheckedLiveMomentumsSeenFromTwoPeers": 337,
+  "duplicateCount": 433,
+  "evidenceBytes": 1471334,
+  "excludedByReason": {
+    "requested_response": 447,
+    "warmup": 4
+  },
+  "final": true,
+  "generatedAt": "2026-11-07T15:38:58.5914791Z",
+  "maxTwoSessionOverlapSeconds": 3639.892152611,
+  "methodVersion": "feasibility-1",
+  "milestone1Passed": true,
+  "observerId": "local-feasibility-20261107",
+  "peakHeapBytes": 3465536,
+  "peakRSSBytes": 19427328,
+  "producerSoftwareVersion": null,
+  "queueDepth": 0,
+  "rankingAvailable": false,
+  "referenceError": "",
+  "referenceObservedAt": "2026-11-07T15:38:56.615380839Z",
+  "release": "0.1.0-feasibility",
+  "schemaVersion": "1.0",
+  "sessions": [
+    {
+      "sessionId": "8e304370b4a0f72ab3b219f90f32d18e-1",
+      "peerId": "0316e6152bed5773850c72a79a8eed9c4dd72966d6f5101e860fa73da6c9a064701964cf3e0a09420a60c38000497af4c43c0e1374bfe5120dee0180f7bc30ed",
+      "ip": "51.81.209.53",
+      "port": 35995,
+      "clientName": "v0.0.8 znn-node",
+      "advertisedVersion": "0.0.8",
+      "capabilities": [
+        "eth/61"
+      ],
+      "connectedAt": "2026-11-07T14:38:17.593656199Z",
+      "statusCompletedAt": "2026-11-07T14:38:17.726692113Z",
+      "statusCompletedMonoNs": 1204131286,
+      "disconnectedAt": "2026-11-07T15:38:58.552478162Z",
+      "disconnectedMonoNs": 3642029917335,
+      "disconnectReason": "read tcp 172.21.0.2:52304-\u003e51.81.209.53:35995: use of closed network connection",
+      "statusReference": {
+        "hash": "57f444c6de47b8a58ae2a8507929602569ae87f8d9d5dc05f3da1603ff642b73",
+        "height": 14607834,
+        "previousHash": "c21d0cb4e721aebc4c1112714498453b83379ba0cc0e865bd15550731ebfbd03",
+        "timestamp": 1794062290,
+        "producerAddress": "z1qq2g7e4larm8h3knntcs9v5m058pqr38xrus0n",
+        "protocolVersion": 1,
+        "verificationState": "rpc_observed",
+        "source": "wss://my.hc1node.com:35998"
+      }
+    },
+    {
+      "sessionId": "8e304370b4a0f72ab3b219f90f32d18e-2",
+      "peerId": "072792b916d53179692b01d3d60b38f6fcb37fa8f4bf111b55007546035f2a5244b269c8875a22e422cc336df6784659f67026107d96225c250d47eacbe9d7a1",
+      "ip": "23.95.73.26",
+      "port": 35995,
+      "clientName": "v0.0.9 znn-node",
+      "advertisedVersion": "0.0.9",
+      "capabilities": [
+        "eth/61"
+      ],
+      "connectedAt": "2026-11-07T14:38:18.574757581Z",
+      "statusCompletedAt": "2026-11-07T14:38:18.660325552Z",
+      "statusCompletedMonoNs": 2137764724,
+      "disconnectedAt": "2026-11-07T15:38:58.552603496Z",
+      "disconnectedMonoNs": 3642030042668,
+      "disconnectReason": "read tcp 172.21.0.2:56250-\u003e23.95.73.26:35995: use of closed network connection",
+      "statusReference": {
+        "hash": "57f444c6de47b8a58ae2a8507929602569ae87f8d9d5dc05f3da1603ff642b73",
+        "height": 14607834,
+        "previousHash": "c21d0cb4e721aebc4c1112714498453b83379ba0cc0e865bd15550731ebfbd03",
+        "timestamp": 1794062290,
+        "producerAddress": "z1qq2g7e4larm8h3knntcs9v5m058pqr38xrus0n",
+        "protocolVersion": 1,
+        "verificationState": "rpc_observed",
+        "source": "wss://my.hc1node.com:35998"
+      }
+    }
+  ],
+  "storageError": "",
+  "traffic": {
+    "actualEgressBytesThisBoot": 106054,
+    "actualIngressBytesThisBoot": 377348,
+    "egressLimit": 52428800,
+    "ingressLimit": 262144000,
+    "pausedUntil": "0001-01-01T00:00:00Z",
+    "reservedEgressBytesRollingHour": 3997696,
+    "reservedIngressBytesRollingHour": 3997696
+  },
+  "upstreamRevision": "bb39e31c608dc397a91b98b21b096bca99a9f4d6",
+  "windowStart": "2026-11-07T14:38:16.522560869Z"
+}

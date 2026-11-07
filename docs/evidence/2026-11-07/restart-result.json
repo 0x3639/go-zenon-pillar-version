@@ -1,0 +1,11 @@
+{
+  "identityPreserved": true,
+  "priorTrafficBucketsPreserved": 59,
+  "newBootId": "6c09810047f4b9119622fc4ca5c2c430",
+  "healthySessions": 2,
+  "captureDrops": 0,
+  "clockJumps": 0,
+  "originalEvidencePreserved": true,
+  "final": true,
+  "purpose": "15-second restart smoke test of the final source-built image, not a second hour-long feasibility test"
+}

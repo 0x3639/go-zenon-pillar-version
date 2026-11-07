@@ -1,0 +1,21 @@
+{
+  "experimentBootId": "8e304370b4a0f72ab3b219f90f32d18e",
+  "experimentBinarySHA256": "c4a7cf6b05203c74c2f7ebf374fdfee220abf811685d740e92c851e08acf95cf",
+  "handoffSourceCommit": "67624fae62f24b6c147c5484a6eb6ff657b1e722",
+  "upstreamRevision": "bb39e31c608dc397a91b98b21b096bca99a9f4d6",
+  "experimentImageId": "sha256:bf978a43e6bc3bc17fa49ab1f1077e09dec3f4b05f04b0e377907e2de203575d",
+  "handoffImageId": "sha256:19b764fd831fc954052fd00e0322960388d884bf88fddfb2283b585fc0aac1e4",
+  "rawEvidenceSHA256": "39e1bf5c5bc21f8afbdc2755b37c87b9a97e2cc9cd736d0e4455dfb3ac4a00c9",
+  "rawEvidenceBytes": 1471334,
+  "signingProducerAddressesObserved": 80,
+  "sourceProvenanceNote": "The uninterrupted run used the initial feasibility binary. The handoff source adds persistence deadlines, stale-credit and shutdown edge-case fixes, bounded state reads, static-check cleanup, and the repository module rename. Protocol message handling is unchanged. The final image passed tests and the separate 15-second restart smoke test; it was not rerun for another hour.",
+  "files": {
+    "restart-result.json": "71d39e903864dbf98c3de29866f5f283a97260fcfd408f2b0b8e0f8b8ec42789",
+    "report.json": "df9eaac8916c602145f1a8ad3b48f69ebbd1e8c61abd0fb0868806ea04dcd6ee",
+    "container-observations.json": "ee42a34cac45a90a95c19bcff867c321595c6be97563a84301f48378d847be07",
+    "resource-samples.jsonl": "e80de92fbfdcb90a7f05aea7c8434971eab0e6823ab1db29d0cb3d57e6195bb8",
+    "test-results.txt": "f231a328e62e01dd02c8addc9354cd56df031711a2764c61b01f017da6fb7a72",
+    "arrivals.jsonl.gz": "49f315d8afcd079d9b69c0b6109ad5b790162c6776ece03d0dbfe9e668ee28e5",
+    "evidence-audit.json": "d50b53d5b9aaa38d118979492bc3eca30b769533793e28fb2085336368c2b094"
+  }
+}

@@ -37,8 +37,9 @@ A unit test pass is not a public-network feasibility pass. Only an actual run
 with final evidence, two continuously overlapping sessions for an hour and
 100 checked live momentums observed independently from both peers establishes
 milestone 1. The report must also disclose disconnects, capture gaps, bytes
-and peak memory. The local experiment's report is stored separately in
-`docs/feasibility-report.md` when the run finishes.
+and peak memory. The completed local experiment and its build-provenance limits
+are documented in `docs/feasibility-report.md`, with the original metadata and
+resource evidence.
 
 Not yet tested or implemented: SQLite migrations/recovery, two-source disputes,
 reorganizations, retention, HTTP limits, multi-day cohort statistics, holdouts,
