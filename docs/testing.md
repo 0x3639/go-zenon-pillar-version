@@ -41,7 +41,13 @@ and peak memory. The completed local experiment and its build-provenance limits
 are documented in `docs/feasibility-report.md`, with the original metadata and
 resource evidence.
 
-Not yet tested or implemented: SQLite migrations/recovery, two-source disputes,
-reorganizations, retention, HTTP limits, multi-day cohort statistics, holdouts,
-production server isolation and the 24–48 hour Coolify pilot. These are later
-acceptance gates in SPEC.md, not implied successes.
+The collector suite additionally tests SQLite schema creation/newer-schema rejection,
+transaction rollback, raw retention, consistent backups, restart recovery, historical
+session versions, exact arrival clocks through deferred resolution, RPC disagreement
+and continuity loss, request methods/ranges/origins/size bounds, ETags, and API liveness
+while RPC is unavailable or storage intake is paused. The four-peer local smoke check
+and its provenance are recorded in `docs/collector-validation.md`.
+
+Still pending: multi-day cohort statistics, holdouts, 90-day aggregates, production
+server isolation, remote rollback exercise, and the 24–48 hour Coolify pilot. Local
+tests and a short smoke check do not establish these acceptance gates.

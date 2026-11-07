@@ -1,0 +1,86 @@
+{
+  "release": "0.2.0-collector",
+  "upstreamRevision": "bb39e31c608dc397a91b98b21b096bca99a9f4d6",
+  "imageId": "sha256:be07455b837bccb51f61a7f2431b3bb0995a1d4037a1dae67f1962a5b5cacb4c",
+  "architecture": "arm64",
+  "os": "linux",
+  "finalSourceFourPeerRestartPassed": true,
+  "restart": {
+    "sameIdentity": true,
+    "originalArrivalRowsPreserved": 10,
+    "unexpiredTrafficBucketsPreserved": true,
+    "oldSessionsClosed": true,
+    "connectedPeersAfterRestart": 4,
+    "captureDropsAfterRestart": 0,
+    "newBootId": "68b0fdb1f99433bbbeaca555a2c7deb2",
+    "etag304": true,
+    "allowedOriginWorks": true,
+    "checkedAt": "2026-11-07T16:39:09.527526581Z",
+    "gracefulStopSeconds": 0.163
+  },
+  "containerLimits": {
+    "Memory": 536870912,
+    "MemorySwap": 536870912,
+    "NanoCpus": 1000000000,
+    "PidsLimit": 64,
+    "ReadonlyRootfs": true,
+    "CapDrop": [
+      "ALL"
+    ],
+    "SecurityOpt": [
+      "no-new-privileges:true"
+    ],
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {
+        "max-file": "3",
+        "max-size": "10m"
+      }
+    }
+  },
+  "resourceSample": {
+    "cpu": "0.29%",
+    "memory": "11.04MiB / 512MiB"
+  },
+  "consistentOnlineBackupPassed": true,
+  "exitCode": 0,
+  "oomKilled": false,
+  "remotePilotCompleted": false,
+  "associationAnalysisImplemented": false,
+  "sourceFilesSHA256": {
+    "Dockerfile": "33217a93fb597d0a0235075e9ea42a744bad6425cd3035390e6951fcbd7f5a61",
+    "go.mod": "9f16cdf7dc0ea4ff2f33e959157e4801267793ab6645f84026a8752fb12d864f",
+    "go.sum": "b3969bb87affa44ba493b9e3fcfe48cd43e164ce4a97b15b3f652407a552d8ca",
+    "compose.yaml": "348c611b30dbb0996f01e33b0a9a39b3c69d392f5f32b46e63b6399d7fa48857",
+    "cmd/observer/main.go": "b9821644233b0593d984232b3913be5c6c450504175de006529c3200b70eaaf7",
+    "internal/capture/engine.go": "33ffdeba12fa7f643002f308629f476a0d20d4b2bda080eaf73b8e61f8d4dea7",
+    "internal/capture/engine_test.go": "7b715451d25e038f183e1451994d745921db870170d8ae2637d85af0775cca4b",
+    "internal/capture/writer.go": "8c1f7549f43db017a9389be1cb5698d5862a1cac21a5aed649eb4575a525bd03",
+    "internal/httpapi/server.go": "c1e9ef48f8a5518dd05111e046c0c546856a268a21adc9cb90be5056443afba2",
+    "internal/httpapi/server_test.go": "ab70b6baeb053de0590da9cb9a403d7603ca0aed3f2df6f76c9dbe2a0b712eec",
+    "internal/limits/state.go": "b05e1f084777034dc6e0a839bf5219f68c552d4d48d7742ad67a143614a7bebc",
+    "internal/limits/state_test.go": "dff91e851734876cd3771ea72c26ab0701c536d704667ca7bf710742c0d4d349",
+    "internal/netguard/netguard.go": "5069495ebfb7ccfb8586e5e91f8c263081d1cecce743848f88ff15d4bace237e",
+    "internal/netguard/netguard_test.go": "d024eebd168b7f91c2748aa037c8e71b85a9d2948705e3cc2182184e171248bf",
+    "internal/protocol/protocol.go": "4f71df36746bd15e02a3d085d8f960820af92b7ed436ae319a812e71534b6648",
+    "internal/protocol/protocol_test.go": "a00c9a35da7ea1d4d5ed251782ab67839d457408a48eb7d96e1269516b3b7d1b",
+    "internal/reference/client.go": "cd918edcb7e7ee4578e4f990f71ac3bb0fd1441150b29c4dbdbba25ada2ee075",
+    "internal/reference/reconcile.go": "d070417e2259f9df124edbf6edb03b2a6f5e2ec073280cf51afb9383737ca91a",
+    "internal/reference/reconcile_test.go": "2dd37a4446c7f0f09a7955d853cf0b30aa385d21f89adb3ca4b0e24a3daa29e5",
+    "internal/runner/config.go": "63d3d44056748168b6fd27854886a207e39c5ed1bcc296a0b8b17567d27e520a",
+    "internal/runner/run.go": "e1a6c3bff03e7459c64215c0bab535a2ad8d122b0c57b1e29c289de03dca15b3",
+    "internal/runner/runner_test.go": "aa56f125ce8739abae88f9206cb465f3043b780967ea6de6756e376a31405c79",
+    "internal/runner/service.go": "aec3b252382e3d88beebaaddf7e5aa7aa17fbc5024c75f85dc1a21c2f42e5db1",
+    "internal/runner/service_test.go": "b770a85be379739eda50a58455480fe3f7f4b464ad9969e0396d3dc1f031dd84",
+    "internal/runner/session.go": "cd7dda3bb8992a66fff4d4bd19fe44bf1f50f169955a710d033d70473c0f70b0",
+    "internal/runner/upstream_integration_test.go": "742ce1a02282e718cfa5c30e3c53dd5485684b8adedeef61e95ac994d6cb4fa3",
+    "internal/storage/backup.go": "ef54377ccb89881a68889b72bfdc4534763a2acd4c165a919de9a5b9256cfb29",
+    "internal/storage/query.go": "4bf7f66a1a64f659a7d002b4c47d8350422b396d416ecd396cee485fd33366a5",
+    "internal/storage/store.go": "abe98710526c16a7ddf66b393e4791d21df4cce3ca505a8f9e39bd026e000b69",
+    "internal/storage/store_test.go": "e60e68bb428a57b0a8f5c4ce98c16f8c004ee6f28592df4303c1f8e273741597",
+    "internal/transport/rlpx.go": "6b4d6d757f79138c271cfcbe1e3a5d3c411f8045c15e53eff4757ee46eb7a941",
+    "internal/transport/transport.go": "f1c4997467605781747b8ed24f3b96a1ba01ab50cf69c37416d33a9b4de395f3",
+    "internal/transport/transport_test.go": "82ee1cb3797a2f96cdcd93463a84d2b3df3d3eb22b67e26405b9749f1336e182",
+    "internal/storage/migrations/001_initial.sql": "5ee2f935a5c6228006e1cc5ac425bcf814dfba668aa6526b2f69bf19222d7654"
+  }
+}

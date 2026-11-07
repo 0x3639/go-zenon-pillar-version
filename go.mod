@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/ethereum/go-ethereum v1.10.22
 	github.com/gorilla/websocket v1.5.0
+	github.com/mattn/go-sqlite3 v1.14.53
 	github.com/zenon-network/go-zenon v0.0.0-20261010234450-bb39e31c608d
 	golang.org/x/crypto v0.1.0
 )

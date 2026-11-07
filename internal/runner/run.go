@@ -87,7 +87,7 @@ func backoff(failures int) time.Duration {
 	return base + time.Duration(n.Int64())
 }
 
-func Run(parent context.Context, cfg Config) error {
+func runFeasibility(parent context.Context, cfg Config) error {
 	debug.SetMemoryLimit(320 << 20)
 	ctx, cancel := context.WithTimeout(parent, cfg.Duration)
 	defer cancel()

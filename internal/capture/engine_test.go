@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -108,5 +109,39 @@ func TestQueueSaturationAndRecordLimits(t *testing.T) {
 	}
 	if w.Submit(make([]byte, MaxRecordBytes)) {
 		t.Fatal("oversized record accepted")
+	}
+}
+
+func TestRollingCacheKeepsServiceBounded(t *testing.T) {
+	e := engine(t)
+	e.Rolling = true
+	now := time.Now()
+	e.AddSession(Session{ID: "live", PeerID: "peer", Ready: now.Add(-time.Minute)})
+	for i := 0; i < MaxArrivals; i++ {
+		e.arrivals[fmt.Sprint(i)] = &Arrival{SessionID: "live", Mono: int64(time.Second)}
+	}
+	e.Tick(e.Start.Add(11 * time.Minute))
+	if len(e.arrivals) != 0 || e.Stopped() {
+		t.Fatal("continuous cache failed to evict")
+	}
+	h := protocol.Header{Hash: types.NewHash([]byte("new")), Timestamp: uint64(now.Unix())}
+	e.Observe("live", h.Hash, "full_broadcast", now, &h)
+	if len(e.arrivals) != 1 {
+		t.Fatal("capture did not resume after eviction")
+	}
+}
+func TestStorageThresholds(t *testing.T) {
+	s := StorageStats{UsedBytes: 1 << 20, FreeBytes: 2 << 30, TotalBytes: 10 << 30, MinimumFree: 1 << 30}
+	if s.Safe(2<<30) != nil {
+		t.Fatal("safe storage rejected")
+	}
+	s.FreeBytes = 512 << 20
+	if s.Safe(2<<30) == nil {
+		t.Fatal("low disk accepted")
+	}
+	s.FreeBytes = 2 << 30
+	s.UsedBytes = 1900 << 20
+	if s.Safe(2<<30) == nil {
+		t.Fatal("data budget exceeded")
 	}
 }

@@ -1,145 +1,109 @@
 # Zenon P2P Observer
 
-Repository: [0x3639/go-zenon-pillar-version](https://github.com/0x3639/go-zenon-pillar-version).
+Independent Zenon momentum collection with a read-only JSON API for
+[go-zenon-version](https://0x3639.com/go-zenon-version/).
+Release **0.2.0-collector** adds continuous collection, SQLite persistence,
+bounded reference reconciliation, retention, and HTTP. The existing Observatory
+and discovery service remain independent and unchanged.
 
-An independent, bounded Go observer for the Zenon P2P network. This repository
-implements **milestone 1: protocol feasibility** from [SPEC.md](SPEC.md). It
-does not run a full node, sync chain history, operate a validator, access a
-wallet, or change the existing Observatory.
+**A relay's advertised version is not its producer's software version.** Producer
+addresses derive from checked signing keys, without consensus validation. No
+ownership or software attribution is inferred from timing. Conflicting signer
+claims are disputed and their producer address is withheld.
 
-The [November 7 feasibility experiment](docs/feasibility-report.md) passed:
-two simultaneous public-peer sessions for over an hour, 337 checked live
-momentums seen from both peers, and zero reported capture drops. Durable
-collection and the site's read-only API are the next milestone.
+The [original feasibility test](docs/feasibility-report.md) passed with 337 checked
+momentums seen from two peers over an hour. The collector still needs the four-peer,
+24–48 hour remote pilot in [SPEC.md](SPEC.md). Association statistics, 90-day
+aggregates, holdouts, reviewed identity assertions and dashboard integration are
+later milestones. The associations endpoint explicitly reports analysis unavailable.
 
-The first experiment maintains two or four outbound connections, negotiates
-encrypted RLPx, Hello and Zenon mainnet `eth/61` status, and records per-peer
-momentum arrivals. It resolves producer addresses by recomputing hashes and
-checking Ed25519 signatures. RPC fetch times never replace P2P arrival times.
+## Deploy in Coolify
 
-**Relay observations do not identify a pillar's IP or software version.**
-Advertised versions belong to peer sessions. This release provides no ownership
-inference, association rankings, HTTP API, database, or dashboard.
+Use a Git-based **Docker Compose** application, repository root `/`, Compose file
+`/compose.yaml`, one replica. Save/load the definition after upgrading.
 
-## Build and test
+Let the old experiment finish before redeploying. Keep its volume, `OBSERVER_ID`,
+peer seeds and traffic limits. Update these environment variables:
 
-All dependencies and Go code run in containers. No Node tooling is required.
-Docker must be available. From the repository root:
+```dotenv
+RUN_DURATION=0s
+MAX_PEERS=4
+RAW_RETENTION_DAYS=7
+ALLOWED_ORIGINS=https://0x3639.com
+```
+
+`RUN_DURATION=0s` enables continuous service. An old `65m` value still stops it after
+65 minutes. Supply at least four distinct public peer identities on distinct IPs
+for the four-peer pilot; increasing MAX_PEERS does not create missing seeds.
+[Four candidates used in the local check](docs/pilot-peers.env.example) are provided.
+Use `enode://<128-character-key>@<host>:<port>` entries in `PEER_SEEDS`, separated by
+commas. There is no automatic discovery. See [.env.example](.env.example).
+
+Assign the `observer` service your HTTPS domain and **internal port 8080**, with
+an empty path. The selected domain for this deployment is:
+
+`https://zsjo46q7s0qcmaklbmak7gfp.172.245.238.165.sslip.io`
+
+No P2P listener or direct host port is needed. ALLOWED_ORIGINS contains origins
+without paths; empty disables browser cross-origin access. Setting CORS does not
+modify the existing website.
+
+Deploy and check `/healthz`, `/readyz`, and `/api/v1/status`. Logs include startup
+and compact status every 30 seconds. The health check tests liveness; peer/RPC
+outages do not trigger restarts. Readiness is separate. See
+[operations](docs/operations.md) for pause states, backups, and rollback.
+
+Compose retains `observer-data:/data`, 512 MiB, one CPU, no extra swap, and uses
+`on-failure:3`. The 2 GiB data budget includes WAL, sidecars, backups and old
+experiment files; it is not a filesystem quota. Prefer an isolated host or a
+Coolify build server. Images can be built elsewhere and deployed by registry digest.
+
+## API
+
+| Route | Result |
+| --- | --- |
+| `/healthz` | Process liveness |
+| `/readyz` | Initialization/write readiness, or 503 |
+| `/api/v1/status` | Collection, references, queue, storage and traffic |
+| `/api/v1/peers` | Historical sessions, endpoints and advertised versions |
+| `/api/v1/momentums` | Checked headers, producer addresses and verification |
+| `/api/v1/momentums/{hash}/arrivals` | Original per-peer arrival evidence |
+| `/api/v1/pillars/{address}` | Dated name snapshots and observed momentums |
+| `/api/v1/associations` | Explicit unavailable result until analysis is implemented |
+
+[API guide](docs/api.md) · [OpenAPI](docs/openapi.json) ·
+[Interpretation guidance](docs/interpretation.json)
+
+## Local build and test
+
+All dependencies and execution run in containers. No Node tooling is needed.
 
 ```sh
 ./scripts/check.sh
-docker build -t zenon-p2p-observer:feasibility .
-docker run --rm --network none zenon-p2p-observer:feasibility version
-```
-
-The check script downloads pinned dependencies in a non-root container, then
-disables networking for the race suite, compatibility test, static checks and
-build. The Go toolchain image is pinned by digest. `go.mod` pins go-zenon to
-`bb39e31c608dc397a91b98b21b096bca99a9f4d6`; `go.sum` pins dependency content.
-The release and upstream revision are included in every run report and in
-`observer version`. Standard Go build metadata records resolved modules.
-
-The full upstream `p2p.Server` has a reproducible race in its own lifecycle.
-The explicit `upstream_integration` test therefore runs separately without the
-race detector. It verifies interoperability with that exact upstream server.
-The default race suite covers the observer's packages, including concurrent
-encrypted handshakes. The production observer does not instantiate the upstream
-server, discovery scheduler or protocol manager. See [testing.md](docs/testing.md).
-
-## Run the bounded experiment
-
-```sh
 cp .env.example .env
-# Set OBSERVER_ID and PEER_SEEDS in .env.
-docker compose up -d --build
-docker compose logs --tail 30
+# Set OBSERVER_ID and PEER_SEEDS.
+docker compose -f compose.yaml -f compose.preview.yaml up -d --build
+curl http://127.0.0.1:8080/api/v1/status
 ```
 
-Supply seeds as a comma-separated list of
-`enode://<128-character-public-key>@<public-IP-or-hostname>:<TCP-port>`.
-Ports are required. At most 32 candidates are accepted. Choose known public
-peers from an existing candidate roster; this program has no scanner or
-automatic discovery-feed importer. Candidate sources are untrusted: addresses
-are validated, DNS is resolved immediately before dialing, the socket endpoint
-is checked, and both transport and Hello identities must match the seed key.
+The preview override publishes localhost only. `compose.local.yaml` is a
+workstation-only override using a prebuilt binary and workspace data; never select
+it in Coolify. Go 1.26, base images and checksums are pinned. The upstream revision
+remains `bb39e31c608dc397a91b98b21b096bca99a9f4d6`. Checks include races, compatibility,
+static analysis and compilation. The full upstream server fixture runs separately
+because of its documented lifecycle race; production uses our transport adapter.
 
-The default run ends after 65 minutes. Set `MAX_PEERS=2` for the initial
-feasibility test; four is the configuration default and eight is the ceiling.
-One dial/handshake runs at a time. A successful roster remains fixed; only
-failed sessions are replaced. Restarting preserves the dedicated key,
-traffic reservations and per-peer reconnect cooldowns.
+## Existing experiment data
 
-No port is published, no inbound P2P socket is opened, and there is no HTTP
-listener in milestone 1. Compose uses a dedicated volume, one non-root replica,
-a read-only root filesystem, dropped capabilities, 512 MiB memory, one CPU,
-no extra swap allowance, and rotated logs. The experiment does not restart
-automatically after completion, overload, or an unsafe storage condition.
+Upgrading preserves `identity.key`, `limits.json`, and old JSONL/reports. Service
+mode creates SQLite alongside them. Legacy events are **not imported into the API**
+or counted toward the new pilot. This is disclosed in data quality. No private key
+is served or logged.
 
-For a local run using a workspace directory on macOS (rather than Docker's
-internal disk), build with `./scripts/check.sh`, create `.work/run-data`, and
-use `docker compose -f compose.yaml -f compose.local.yaml up -d --build`.
-The local override's `user` must match the owner of that directory; the supplied
-value is `501:20`. It uses the compiled local binary. The ordinary Dockerfile
-builds from source and is the release build path.
-
-## Evidence and acceptance
-
-Each run writes these files under `/data`:
-
-| File | Purpose |
-| --- | --- |
-| `identity.key` | Dedicated persisted secp256k1 identity, mode 0600; never publish |
-| `limits.json` | Persisted rolling traffic reservations and reconnect cooldowns |
-| `evidence-<boot-id>.jsonl` | Bounded metadata evidence; no full account bodies |
-| `report-<boot-id>.json` | Atomically refreshed operational and acceptance report |
-| `observer.lock` | Exclusive volume ownership lock |
-
-Read a report without exposing the key:
+To run a separate finite CLI experiment without HTTP:
 
 ```sh
-docker compose exec -T observer sh -c 'cat /data/report-*.json'
-# For the local override:
-python3 scripts/summarize.py .work/run-data/report-*.json
+docker compose -f compose.yaml -f compose.feasibility.yaml up -d --build
 ```
 
-`milestone1Passed` requires two distinct peer identities on distinct IPs with
-at least **60 continuous overlapping minutes**, at least **100 distinct checked
-live momentums seen from two peers**, zero reported capture drops, zero storage
-writer failures, and no detected clock discontinuity. The 100-momentum condition
-is deliberately stricter than a total counted from just one peer. An early
-report remains provisional until `final: true`. A status handshake or successful
-Hello alone never passes the test.
-
-Full broadcasts and hash announcements have separate event kinds. Requested
-responses and unsolicited unmatched response packets are retained but excluded
-from live unsolicited counts. Five seconds of warmup and a two-minute live age
-window apply. Slot time is not a producer's transmission time. Every arrival
-has UTC and a boot-relative monotonic timestamp, and each peer's earliest
-arrival survives deduplication. Resolution records retain that original time.
-
-See [interpretation.json](docs/interpretation.json), [protocol.md](docs/protocol.md)
-and [operations.md](docs/operations.md) for measurement and resource limits.
-
-After the run ends, `python3 scripts/audit-evidence.py <report-file>
-<evidence-file>` independently checks recorded counts, session overlap, and
-preservation of original P2P timestamps across resolution updates. It does not
-repeat signature verification from the stripped metadata or validate consensus.
-
-## Scope after feasibility
-
-Milestone 2 adds SQLite/WAL, migrations, durable raw-event deduplication,
-bounded two-source reconciliation, reorganization handling, retention and
-health/status endpoints. Later milestones add the isolated Coolify pilot,
-coverage-adjusted association statistics, the read-only API/OpenAPI schema,
-and optional dashboard integration. None of those milestones is implied by
-a passing protocol experiment. The user creates the remote repository and
-performs Coolify deployment; this work does not deploy or alter that service.
-
-The intended API consumer is the existing **go-zenon-version** site at
-<https://0x3639.com/go-zenon-version/>. Its observer requests will use a separate
-API domain and fail independently of the existing discovery panels. The future
-CORS allowlist should include the site's origin `https://0x3639.com`, not the
-page path. No browser access or API route is enabled in this milestone.
-
-The full requested design remains in [SPEC.md](SPEC.md). Licensing and adapted
-source notices are in [LICENSE](LICENSE) and [third_party/NOTICE.md](third_party/NOTICE.md).
+Never run both modes against the same volume concurrently.

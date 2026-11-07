@@ -1,108 +1,121 @@
-# Operating the feasibility experiment
+# Operating the collector
 
-## Resource boundary
+## Deployment and upgrade
 
-The normal Compose application uses only its own image, network and volume.
-No Observatory volume, key, environment or container is shared. No public
-port is needed. A separate host is the strongest eventual deployment boundary.
-The local development override mounts only this project's data directory.
+Use one Git-based Docker Compose application, `/compose.yaml`, internal HTTP port
+8080, and the existing `observer-data:/data` volume. Do not deploy `compose.local.yaml`
+or `compose.preview.yaml` remotely. The user performs the Coolify deployment.
+Changing the domain does not change the observer identity.
 
-| Limit | Implementation |
+For 0.1 → 0.2, preserve `OBSERVER_ID`, the volume, peer seeds, and traffic budgets.
+Set `RUN_DURATION=0s`; the previous `65m` value remains finite. Service mode is fixed
+in the normal Compose definition. SQLite schema 1 is created next to the old files.
+Legacy JSONL/reports remain untouched and are not imported. The same identity and
+unexpired traffic reservations are reused. There are no writes to Observatory
+containers, storage, identity mappings, or discovery configuration.
+
+Allow an active feasibility experiment to finish before deploying this update.
+Use four configured public peers on distinct IPs for the next pilot. A two-seed
+configuration remains a two-peer observation even if MAX_PEERS is four.
+
+A separate host gives the strongest isolation. Prefer a separate Coolify build
+server or build the image elsewhere and deploy a registry digest. Source builds
+on a shared server consume resources outside the observer's runtime limits.
+
+## States and containment
+
+| Boundary | Behavior |
 | --- | --- |
-| Connections | Default 4; ceiling 8; at most one per IP; one dial/handshake at a time |
-| Runtime | Default 65 minutes; allowed 1 second–2 hours; no automatic restart |
-| Memory/CPU | 512 MiB hard container limit; 320 MiB Go target; 1 CPU; 64 process limit |
-| Metadata | 2,000-record nonblocking queue; 8 KiB per record; every failed enqueue counted |
-| Arrivals | At most 20,000 unique session/hash/kind records per boot |
-| Header cache | 2,048 headers; bounded FIFO eviction; no full payload cache |
-| Hash resolution | 128 pending requests; one RPC worker; resolution requests spaced at least 1 second apart |
-| Evidence files | At most 64 MiB per boot, plus small report/limit/key files |
-| Storage | 2 GiB default total directory budget (1–2 GiB supported); pause at 90%; no pruning in milestone 1 |
-| Free disk | Pause below max(1 GiB, 10% of containing filesystem) |
-| Traffic | 250 MiB received / 50 MiB sent per conservative rolling hour |
-| Logs | Docker json-file rotation, 10 MiB each, 3 files |
+| Process | One non-root container; one CPU; 512 MiB hard memory; no additional swap; 64 pids |
+| Storage | SQLite WAL; one write connection and bounded 2,000-record capture queue; batches at most 100 records / 250 ms |
+| Records | At most 8 KiB per queued record; headers and metadata only |
+| Network | Four peers by default, ceiling eight; one dial; one peer per IP; no inbound P2P |
+| Traffic | 250 MiB received / 50 MiB sent per conservative rolling hour; state survives restart |
+| Cache | Ten minutes / at most 20,000 arrival records; 2,048 checked headers; 128 pending resolutions |
+| Data | 2 GiB total by default; SQLite main-file ceiling 75% of budget; sidecars and backups count |
+| Filesystem | Pause below max(1 GiB, 10% free) or above 90% data budget |
+| Logs | Compact status every 30 seconds; Docker rotation 10 MiB × 3 |
+| Shutdown | 20-second container grace; cancel network work, drain writer, checkpoint, stop HTTP |
+| Restart | `on-failure:3`; dependency outages do not terminate the process |
 
-Traffic accounting wraps the TCP connection before encryption: authentication,
-Hello, status, ping/pong, discarded transactions, requests and all other peer
-traffic count. RPC traffic is separately bounded by call frequency, timeout
-and response size; it is not included in the P2P hourly counter.
+`observing` means a fresh reference permits collection; check `connectedPeers` and
+recent momentum counts as well. `reference_degraded` retains existing peer sessions
+but waits for a fresh reference before dialing more. Network calls have deadlines.
+`traffic_paused` closes sessions and stops new reference intake during the persisted
+61-minute cooldown; it resumes conservatively after expiry. This is not a host
+bandwidth quota. RPC traffic is bounded separately, not charged to P2P counters.
 
-Reservations are persisted and synced **before** socket I/O. Shared 64 KiB
-credits are charged to one-minute buckets, retaining the current minute and
-the previous 60 minutes. Unused credits are conservatively discarded at minute
-boundaries and on restart. Consequently reserved usage can exceed actual traffic
-and pauses may occur early. Actual byte totals are also reported per boot.
-Traffic is not intentionally permitted beyond the reserved budget. On a breaker,
-all sessions close and the run ends; `pausedUntil` survives restart for 61 minutes.
-A network read already in flight is bounded to 32 KiB per session and its bytes
-have already been reserved. These safeguards are not host bandwidth quotas.
-Reservation acknowledgements have a 250 ms deadline. A stalled persistence
-operation prevents further credit grants and additional persistence workers;
-the observer closes sessions and reports `storage_paused`. No credit is granted
-for a timed-out write, even if the underlying filesystem later completes it.
+`storage_paused` closes peers while preserving HTTP access to prior results where
+possible. Maintenance can recover space and resume collection. SQLite writer or
+budget-persistence failures fail closed until an operator fixes the cause and
+restarts. Queue saturation/cache overflow yields `capture_paused`, visible drop
+counts and failed readiness; restart only after inspecting the cause. Clock jumps
+are recorded and invalidate capture eligibility for the run. No rankings are
+published in this release.
 
-The report contains peak Go heap and Linux process maximum RSS. Container memory
-also includes other charges, so inspect effective settings and measured usage:
+`/healthz` is liveness; `/readyz` is initialization/write readiness. External RPC
+outages alone do not fail readiness. The status snapshot is marked stale after
+30 seconds without refresh. HTTP remains separate from peer I/O and uses bounded
+queries. API readiness is not proof that momentums are being collected.
+
+Verify effective limits on the actual Coolify container; expected memory and total
+swap values are both 536870912, NanoCpus 1000000000, pids 64, read-only root, dropped
+capabilities and no-new-privileges. Also verify the `/data` mount survived the upgrade.
+The app cannot certify a remote container's effective settings itself.
+
+## Reconciliation and retention
+
+A preferred healthy RPC supplies fresh checked headers at a ten-second target.
+A separate worker checks up to 180 recent heights, in batches of at most 30, against
+two available configured endpoints about once a minute. The operation has a
+45-second deadline; there is no unbounded backfill. RPC records are limited to
+256 KiB per response. Pillar registration snapshots are refreshed every five minutes,
+at most four pages of 100. Source failure is visible; old source timestamps remain.
+
+Conflicting hashes are retained as disputed. An agreed hash can replace a prior
+branch at the same height without deleting that branch. A missing shared continuity
+anchor marks continuity unresolved; that flag persists across restarts and requires
+operator review. There is no automatic reset or full-chain repair endpoint.
+Hash agreement is not consensus validation or proof of independent RPC operators.
+Conflicting signing identities for a hash remain disputed and are never attributed.
+
+Raw arrival, session, header, name, gap and run data is retained seven days (configurable
+1–7). Maintenance deletes expired rows in batches of 1,000, checkpoints WAL, and
+reclaims at most 128 free pages per incremental-vacuum pass. At 80% budget it runs
+every ten seconds instead of every minute. It never removes identity, traffic state,
+backups, or legacy experiment evidence. No full VACUUM is used. Ninety-day aggregates
+are not implemented in this release; older raw data cannot be recomputed later.
+
+## Backup and rollback
+
+In the observer container Terminal, create a consistent online database backup:
 
 ```sh
-docker inspect zenon-p2p-observer-observer-1 \
-  --format '{{.HostConfig.Memory}} {{.HostConfig.MemorySwap}} {{.HostConfig.NanoCpus}} {{.HostConfig.ReadonlyRootfs}}'
-docker stats --no-stream zenon-p2p-observer-observer-1
+observer backup backup-2026-11-07.sqlite
 ```
 
-The expected memory and swap-total values are both 536870912; NanoCpus is
-1000000000. Check these on the real deployment too. Go's memory target alone
-does not enforce a host limit.
+This uses [SQLite's online backup API](https://www.sqlite.org/backup.html) in small steps, checks the result, refuses to
+overwrite files, and enforces the total data budget. The filename must be new and
+end in `.sqlite`. It resides under `/data` and counts against the budget. Copy a
+completed backup to private external storage, then remove that backup explicitly
+when appropriate. Never copy only the live `observer.sqlite` file.
 
-## Stop, restart and recovery
+A database backup does not include `identity.key` or `limits.json`. For full recovery,
+stop the observer and take a private snapshot of its entire volume, preserving
+ownership (10001:10001) and restrictive permissions. The snapshot contains a private
+P2P key. Restore only with the observer stopped. Do not delete state files to reset
+a traffic cooldown. Never share this volume between two running observers.
 
-```sh
-docker compose stop --timeout 20 observer
-docker compose up -d observer
-```
+Before a schema upgrade, preserve a full consistent snapshot and record the image
+digest. Newer unknown schema versions are refused. Roll back with the compatible
+image plus its matching snapshot; do not point an older image at a newer database.
+The old 0.1 experiment does not read SQLite and cannot expose this API.
 
-Use the same Compose overrides when operating a local run. SIGTERM closes
-connections, waits for workers, drains the bounded metadata queue, syncs evidence
-and writes the final report. The Compose stop allowance is 20 seconds. Disk
-operations can still block on a failing filesystem; the runtime's stop deadline
-is the final boundary, and an interrupted run may lack a final report.
+## Pilot acceptance
 
-The new run uses a new boot ID and evidence file, but the same persisted peer
-identity and traffic/cooldown state. Monotonic times from different boot IDs must
-never be compared. Existing evidence is not replayed into new counts. Durable
-cross-restart analysis belongs to the SQLite milestone.
-
-A failed startup does not pass the milestone. A run with `final: false` may
-have been interrupted and must not be treated as a completed test. Check both
-the report and logs. External network or RPC failure causes bounded retries
-while the process remains alive until the configured experiment duration.
-
-If storage is unsafe, the experiment exits without deleting old data or its
-identity. After inspecting and moving completed evidence to a separate location,
-restart explicitly. Do not delete `identity.key` or `limits.json` to bypass a
-pause. File permissions and the exclusive process lock prevent accidental
-identity rotation and concurrent writers. A malformed state file fails closed.
-
-## Backup and retention
-
-Milestone 1 uses append-only JSONL evidence and atomic JSON reports/state, not
-SQLite. Stop the observer before copying a complete directory snapshot so its
-identity, limits and completed evidence are consistent. Keep backups private:
-they include the P2P private key. Local snapshots count against the data budget;
-prefer a separately configured external destination. Restore to a stopped
-observer with restrictive ownership and permissions.
-
-There is no automated retention yet. No seven-day/90-day retention claim is
-made for this release. Preserve evidence used by a feasibility report; later
-SQLite retention, online backups, migrations and rollback compatibility must
-be implemented and tested before the 24–48 hour Coolify pilot.
-
-## Deployment handoff
-
-The user creates the new remote Git repository and Coolify application. Build
-and pilot locally first. This milestone is a finite command-line experiment,
-not a continuously serving production API. Do not configure Coolify to restart
-it unconditionally or report its lack of HTTP service as a health failure.
-The later service will use port 8080 and independent health/readiness routes.
-Build immutable release images off the production host, supply the chosen
-registry/domain, and verify effective container limits at that stage.
+The four-peer 24–48 hour remote pilot is still required. Record at least two healthy
+sessions for 90% of minutes, at least 1,000 distinct checked live momentums and zero
+unreported drops. Sample effective CPU/memory, traffic, logs, database/WAL growth,
+and existing Observatory health if the host is shared. Verify observer stop/restart
+leaves that application unaffected. Do not interpret a short local check as this
+pilot, or a 48-hour pilot as the three-day association-analysis threshold.

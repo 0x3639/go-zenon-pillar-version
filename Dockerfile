@@ -16,4 +16,5 @@ COPY LICENSE /usr/share/doc/zenon-p2p-observer/LICENSE
 COPY third_party /usr/share/doc/zenon-p2p-observer/third_party
 USER 10001:10001
 ENV DATA_DIR=/data GOMEMLIMIT=320MiB
+EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/observer"]

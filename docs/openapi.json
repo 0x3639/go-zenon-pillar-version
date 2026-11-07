@@ -1,0 +1,1716 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Zenon P2P Observer",
+    "version": "0.2.0",
+    "description": "Read-only collection API. See api.md for row fields and interpretation. No association analysis, reviewed assertions or 90-day aggregates. GET/HEAD/OPTIONS only; bodies rejected. Raw windows at most 24 hours within 1\u20137 day retention. 1 MiB response limit. Collections cache 30 seconds with ETags; status and health use no-store."
+  },
+  "servers": [
+    {
+      "url": "https://zsjo46q7s0qcmaklbmak7gfp.172.245.238.165.sslip.io"
+    }
+  ],
+  "paths": {
+    "/api/v1/status": {
+      "get": {
+        "summary": "Operational snapshot",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operational snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "head": {
+        "summary": "GET headers without body",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operational snapshot"
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "Allowed"
+          },
+          "403": {
+            "description": "Origin not allowed"
+          }
+        }
+      }
+    },
+    "/api/v1/peers": {
+      "get": {
+        "summary": "Historical peer sessions",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historical peer sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "result": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/Page"
+                            },
+                            {
+                              "properties": {
+                                "data": {
+                                  "type": "array",
+                                  "items": {
+                                    "$ref": "#/components/schemas/Session"
+                                  },
+                                  "maxItems": 500
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "head": {
+        "summary": "GET headers without body",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historical peer sessions"
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "Allowed"
+          },
+          "403": {
+            "description": "Origin not allowed"
+          }
+        }
+      }
+    },
+    "/api/v1/momentums": {
+      "get": {
+        "summary": "Checked headers and verification",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checked headers and verification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "result": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/Page"
+                            },
+                            {
+                              "properties": {
+                                "data": {
+                                  "type": "array",
+                                  "items": {
+                                    "$ref": "#/components/schemas/Momentum"
+                                  },
+                                  "maxItems": 500
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "head": {
+        "summary": "GET headers without body",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checked headers and verification"
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "Allowed"
+          },
+          "403": {
+            "description": "Origin not allowed"
+          }
+        }
+      }
+    },
+    "/api/v1/momentums/{hash}/arrivals": {
+      "get": {
+        "summary": "Original arrival evidence",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          },
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Original arrival evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "result": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/Page"
+                            },
+                            {
+                              "properties": {
+                                "data": {
+                                  "type": "array",
+                                  "items": {
+                                    "$ref": "#/components/schemas/Arrival"
+                                  },
+                                  "maxItems": 500
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "head": {
+        "summary": "GET headers without body",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          },
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Original arrival evidence"
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "Allowed"
+          },
+          "403": {
+            "description": "Origin not allowed"
+          }
+        }
+      }
+    },
+    "/api/v1/pillars/{address}": {
+      "get": {
+        "summary": "Name snapshots and momentums",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          },
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Name snapshots and momentums",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "head": {
+        "summary": "GET headers without body",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          },
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Name snapshots and momentums"
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "Allowed"
+          },
+          "403": {
+            "description": "Origin not allowed"
+          }
+        }
+      }
+    },
+    "/api/v1/associations": {
+      "get": {
+        "summary": "Analysis unavailable; empty data with available=false",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Analysis unavailable; empty data with available=false",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "head": {
+        "summary": "GET headers without body",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "producer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "peerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            }
+          },
+          {
+            "name": "eventKind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hash_announcement",
+                "full_broadcast",
+                "requested_response",
+                "historical_or_unresolved"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Analysis unavailable; empty data with available=false"
+          },
+          "304": {
+            "description": "ETag matched"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "405": {
+            "description": "Method not allowed"
+          },
+          "413": {
+            "description": "Body rejected or response too large; reduce limit"
+          },
+          "414": {
+            "description": "URI exceeds 4096 bytes"
+          },
+          "429": {
+            "description": "Shared rate limit"
+          },
+          "503": {
+            "description": "Storage or query capacity unavailable"
+          }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "Allowed"
+          },
+          "403": {
+            "description": "Origin not allowed"
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Process liveness",
+        "responses": {
+          "200": {
+            "description": "Alive or ready"
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Storage and initialization readiness",
+        "responses": {
+          "200": {
+            "description": "Alive or ready"
+          },
+          "503": {
+            "description": "Initializing, stale, unsafe writes/capture, or stopping"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Envelope": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "observerId",
+          "generatedAt",
+          "windowStart",
+          "windowEnd",
+          "methodVersion",
+          "dataQuality",
+          "result"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "1.0"
+          },
+          "observerId": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "windowStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "windowEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "methodVersion": {
+            "const": "collection-1"
+          },
+          "dataQuality": {
+            "$ref": "#/components/schemas/DataQuality"
+          },
+          "result": {
+            "type": "object"
+          }
+        }
+      },
+      "DataQuality": {
+        "type": "object",
+        "properties": {
+          "rankingsAvailable": {
+            "const": false
+          },
+          "producerSoftwareVersion": {
+            "type": "null"
+          },
+          "rawRetentionDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7
+          },
+          "legacyFeasibilityImported": {
+            "const": false
+          },
+          "analysisState": {
+            "const": "not_implemented"
+          },
+          "captureState": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Page": {
+        "type": "object",
+        "required": [
+          "data",
+          "nextOffset"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "type": "object"
+            }
+          },
+          "nextOffset": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "Momentum": {
+        "type": "object",
+        "required": [
+          "hash",
+          "height",
+          "producerAddress",
+          "verificationState",
+          "producerSoftwareVersion"
+        ],
+        "properties": {
+          "hash": {
+            "type": "string"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "previousHash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer"
+          },
+          "producerAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "producerSoftwareVersion": {
+            "type": "null"
+          },
+          "protocolVersion": {
+            "type": "integer"
+          },
+          "signerConflict": {
+            "type": "boolean"
+          },
+          "verificationState": {
+            "enum": [
+              "signature_checked",
+              "rpc_observed",
+              "rpc_agreed",
+              "disputed"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "firstObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "referenceCheckedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Arrival": {
+        "type": "object",
+        "required": [
+          "bootId",
+          "sessionId",
+          "hash",
+          "eventKind",
+          "arrivedAt",
+          "monotonicNs",
+          "eligible",
+          "rankingEligible"
+        ],
+        "properties": {
+          "observerId": {
+            "type": "string"
+          },
+          "bootId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "peerId": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string"
+          },
+          "eventKind": {
+            "type": "string"
+          },
+          "arrivedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "monotonicNs": {
+            "type": "integer"
+          },
+          "duplicateCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "exclusionReason": {
+            "type": "string"
+          },
+          "rankingEligible": {
+            "const": false
+          },
+          "verificationState": {
+            "type": "string"
+          },
+          "producerAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ip": {
+            "type": "string"
+          },
+          "advertisedVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "versionObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "producerSoftwareVersion": {
+            "type": "null"
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "required": [
+          "sessionId",
+          "bootId",
+          "peerId",
+          "ip",
+          "advertisedVersion",
+          "connectedAt",
+          "disconnectedAt"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "bootId": {
+            "type": "string"
+          },
+          "peerId": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "clientName": {
+            "type": "string"
+          },
+          "advertisedVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "versionObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "connectedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "disconnectedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "disconnectReason": {
+            "type": "string"
+          },
+          "statusCompletedMonoNs": {
+            "type": "integer"
+          },
+          "disconnectedMonoNs": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "uncleanShutdown": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

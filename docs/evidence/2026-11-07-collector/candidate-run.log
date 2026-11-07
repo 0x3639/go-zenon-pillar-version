@@ -1,0 +1,10 @@
+{"time":"2026-11-07T16:33:03.549199336Z","level":"INFO","msg":"observer started","release":"0.2.0-collector","mode":"service","port":8080,"runDuration":"4m0s","maxPeers":4,"rawRetentionDays":7}
+{"time":"2026-11-07T16:33:04.552501152Z","level":"INFO","msg":"observer status","state":"observing","connectedPeers":0,"recentCheckedMomentums":0,"captureDrops":0,"storageError":"","writerError":""}
+{"time":"2026-11-07T16:33:35.556504255Z","level":"INFO","msg":"observer status","state":"observing","connectedPeers":4,"recentCheckedMomentums":3,"captureDrops":0,"storageError":"","writerError":""}
+{"time":"2026-11-07T16:34:07.556499649Z","level":"INFO","msg":"observer status","state":"observing","connectedPeers":4,"recentCheckedMomentums":6,"captureDrops":0,"storageError":"","writerError":""}
+{"time":"2026-11-07T16:34:39.55264141Z","level":"INFO","msg":"observer status","state":"observing","connectedPeers":4,"recentCheckedMomentums":8,"captureDrops":0,"storageError":"","writerError":""}
+{"time":"2026-11-07T16:35:11.553863596Z","level":"INFO","msg":"observer status","state":"observing","connectedPeers":4,"recentCheckedMomentums":12,"captureDrops":0,"storageError":"","writerError":""}
+{"time":"2026-11-07T16:35:43.55929233Z","level":"INFO","msg":"observer status","state":"observing","connectedPeers":4,"recentCheckedMomentums":15,"captureDrops":0,"storageError":"","writerError":""}
+{"time":"2026-11-07T16:36:14.55982896Z","level":"INFO","msg":"observer status","state":"observing","connectedPeers":4,"recentCheckedMomentums":18,"captureDrops":0,"storageError":"","writerError":""}
+{"time":"2026-11-07T16:36:45.555705556Z","level":"INFO","msg":"observer status","state":"observing","connectedPeers":4,"recentCheckedMomentums":21,"captureDrops":0,"storageError":"","writerError":""}
+{"time":"2026-11-07T16:37:03.538768152Z","level":"INFO","msg":"observer status","state":"stopped","connectedPeers":0,"recentCheckedMomentums":23,"captureDrops":0,"storageError":"","writerError":""}
