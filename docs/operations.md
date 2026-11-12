@@ -9,7 +9,7 @@ Changing the domain does not change the observer identity.
 
 For 0.1 → 0.2, preserve `OBSERVER_ID`, the volume, peer seeds, and traffic budgets.
 Set `RUN_DURATION=0s`; the previous `65m` value remains finite. Service mode is fixed
-in the normal Compose definition. SQLite schema 1 is created next to the old files.
+in the normal Compose definition. SQLite schema 2 is created next to the old files.
 Legacy JSONL/reports remain untouched and are not imported. The same identity and
 unexpired traffic reservations are reused. There are no writes to Observatory
 containers, storage, identity mappings, or discovery configuration.
@@ -79,12 +79,16 @@ operator review. There is no automatic reset or full-chain repair endpoint.
 Hash agreement is not consensus validation or proof of independent RPC operators.
 Conflicting signing identities for a hash remain disputed and are never attributed.
 
-Raw arrival, session, header, name, gap and run data is retained seven days (configurable
-1–7). Maintenance deletes expired rows in batches of 1,000, checkpoints WAL, and
+Raw arrivals, names and gaps are retained seven days (configurable 1–7).
+Hourly association summaries and their supporting headers/sessions are retained
+up to 90 days, within the same storage budget. Dated name labels are embedded in
+summaries. Runs remain while their sessions are retained. Maintenance deletes expired rows in batches of 1,000, checkpoints WAL, and
 reclaims at most 128 free pages per incremental-vacuum pass. At 80% budget it runs
 every ten seconds instead of every minute. It never removes identity, traffic state,
-backups, or legacy experiment evidence. No full VACUUM is used. Ninety-day aggregates
-are not implemented in this release; older raw data cannot be recomputed later.
+backups, or legacy experiment evidence. No full VACUUM is used. Expired raw data cannot be recomputed later. Association rows expose
+`rawEvidenceAvailable`; invalidated expired summaries are withheld. See
+[association analysis](association-analysis.md) for schema-2 upgrade, background
+replay, query rules and diagnostics.
 
 ## Backup and rollback
 

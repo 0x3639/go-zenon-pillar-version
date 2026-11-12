@@ -67,7 +67,7 @@ func (s *Store) Collection(ctx context.Context, resource string, p Query) (Page,
    'verificationState',coalesce(m.verification,'unresolved'),'producerAddress',CASE WHEN m.signer_conflict=0 THEN m.producer ELSE null END,
    'ip',s.ip,'advertisedVersion',s.advertised_version,
    'versionObservedAt',strftime(` + stamp + `,s.ready_at/1000.0,'unixepoch'),
-   'producerSoftwareVersion',null,'rankingEligible',json('false'))
+   'producerSoftwareVersion',null,'rankingEligible',null,'rankingEligibilityReason','determined_by_comparison_window')
    FROM arrivals a JOIN sessions s ON s.session_id=a.session_id LEFT JOIN momentums m ON m.hash=a.hash
    WHERE a.hash=? AND a.arrived_ns>=? AND a.arrived_ns<?`
 		args = append(args, p.Hash, p.Start.UnixNano(), p.End.UnixNano())
@@ -130,8 +130,26 @@ func (s *Store) Quality(ctx context.Context, start, end time.Time) (map[string]a
 		return nil, err
 	}
 	err = s.read.QueryRowContext(ctx, "SELECT count(*) FROM gaps WHERE observed_at>=? AND observed_at<?", start.UnixMilli(), end.UnixMilli()).Scan(&gaps)
+	if err != nil {
+		return nil, err
+	}
+	var completed, pending int
+	err = s.read.QueryRowContext(ctx, `SELECT coalesce(sum(revision=computed_revision),0),coalesce(sum(revision<>computed_revision),0) FROM association_hours WHERE hour+3600<=?`, time.Now().Add(-2*time.Minute).Unix()).Scan(&completed, &pending)
+	if err != nil {
+		return nil, err
+	}
+	state := "ready"
+	if pending > 0 {
+		state = "building"
+	} else if completed == 0 {
+		state = "awaiting_complete_hour"
+	}
+	continuity := s.ContinuityUnresolved(ctx)
+	if continuity {
+		state = "chain_continuity_unresolved"
+	}
 	return map[string]any{"captureDropsInOverlappingRuns": drops, "clockJumpsInOverlappingRuns": jumps, "interruptedRuns": unclean, "recordedGapAndConnectionEvents": gaps,
-		"rankingsAvailable": false, "associationStatus": "insufficient_data", "analysisState": "not_implemented",
+		"rankingsAvailable": completed > 0 && !continuity, "analysisState": state, "associationAnalysisImplemented": true, "analysisProcessedHours": completed, "analysisPendingHours": pending, "aggregateRetentionDays": 90, "associationMethodVersion": "association-1",
 		"producerSoftwareVersion": nil, "consensusValidated": false, "absenceMeansOffline": false,
 		"rawRetentionDays": s.retention, "rawHistoryAvailableFrom": time.Now().UTC().Truncate(30 * time.Second).Add(-time.Duration(s.retention) * 24 * time.Hour),
 		"legacyFeasibilityImported": false}, err

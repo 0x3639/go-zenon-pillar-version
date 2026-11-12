@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.0",
-  "methodVersion": "collection-1",
-  "scope": "durable_collection_and_read_only_api",
+  "schemaVersion": "1.1",
+  "methodVersion": "association-1",
+  "scope": "collection_and_observed_relay_associations",
   "relayPeerIsProducer": null,
   "relayIPIsPillarIP": null,
   "automaticOwnershipInference": false,
@@ -11,7 +11,7 @@
   "producerIdentity": "address_derived_from_checked_momentum_signing_public_key",
   "consensusValidated": false,
   "rpcAgreementImplemented": true,
-  "rankingsAvailable": false,
+  "rankingsAvailable": true,
   "eventKinds": {
     "hash_announcement": "original P2P hash arrival, eligible only after checked resolution and live filtering",
     "full_broadcast": "unsolicited full payload, eligible only after local signature/hash checks and live filtering",
@@ -39,13 +39,34 @@
     "clockJumps": 0,
     "requireFinalReport": true
   },
-  "associationAnalysisImplemented": false,
+  "associationAnalysisImplemented": true,
   "rawRetentionDays": 7,
-  "aggregateRetentionImplemented": false,
+  "aggregateRetentionImplemented": true,
   "legacyFeasibilityImported": false,
   "verification": {
     "rpc_agreed": "Two configured endpoints report the same checked hash and producer at that height; operator independence and consensus finality are not established.",
     "disputed": "Reference sources disagree, a competing branch was observed, or checked signer claims conflict.",
     "signerConflict": "Producer remains null when the same hash has conflicting checked signer claims."
+  },
+  "aggregateRetentionDays": 90,
+  "associationMethod": {
+    "comparisonWindowSeconds": 10,
+    "tieThresholdMs": 5,
+    "minimumEligiblePeers": 2,
+    "sampleCountEquals": "eligibleCount",
+    "missingDeliveryInDenominator": true,
+    "requestedResponsesExcluded": true,
+    "cohortsCombined": false,
+    "minimumComparableSamples": 100,
+    "minimumUTCDays": 3,
+    "baseline": "same hour, cohort, event type and peer; other producers; weighted by target eligible samples",
+    "holdoutSplit": "query midpoint rounded down to UTC hour",
+    "holdoutMinimumSamplesPerHalf": 20,
+    "holdoutMinimumOtherProducerSamplesPerHalf": 20,
+    "holdoutMinimumBaselineCoverage": 0.8,
+    "holdoutPositiveExcessShareThreshold": 0.05,
+    "numericOwnershipProbability": null,
+    "unsafeRunPolicy": "exclude entire boot with drops, clock jumps or unclean shutdown",
+    "expiredRawRecomputationAvailable": false
   }
 }

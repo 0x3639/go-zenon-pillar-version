@@ -48,6 +48,15 @@ and continuity loss, request methods/ranges/origins/size bounds, ETags, and API 
 while RPC is unavailable or storage intake is paused. The four-peer local smoke check
 and its provenance are recorded in `docs/collector-validation.md`.
 
-Still pending: multi-day cohort statistics, holdouts, 90-day aggregates, production
-server isolation, remote rollback exercise, and the 24–48 hour Coolify pilot. Local
+The association suite tests warmup and ten-second cohort membership, single-peer
+exclusion, duplicate deliveries, missing deliveries in denominators, five-millisecond
+ties, requested-response exclusion, exact delay statistics, general-fast and
+pillar-specific relays, chronological holdouts and unstable/negative findings.
+SQLite/API tests cover schema-1 migration with clocks unchanged, reorg invalidation,
+cross-hour late resolution, clean restart, unsafe-run revocation, supporting evidence
+retention, 90-day expiry, filters and multi-day query bounds. A bounded public sample
+is replayed offline; it is not a representative production association assessment.
+
+Still pending: production server isolation, remote rollback exercise, complete
+Coolify pilot acceptance, and assessment of the full deployed multi-day results. Local
 tests and a short smoke check do not establish these acceptance gates.
