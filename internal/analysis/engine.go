@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const Method = "association-1"
+const Method = "association-2"
 const Window = 10 * time.Second
 const Tie = 5 * time.Millisecond
 const Warmup = 5 * time.Second
@@ -30,6 +30,7 @@ type Session struct {
 type Arrival struct {
 	Boot, Session, Hash, Kind, Producer, Verification string
 	At                                                time.Time
+	Slot                                              time.Time
 	Mono                                              int64
 	Eligible, SignerConflict                          bool
 }
@@ -101,7 +102,7 @@ func ComputeContext(ctx context.Context, start, end time.Time, runs []Run, sessi
 		groups[key] = append(groups[key], a)
 	}
 	parts := map[string]*Part{}
-	durations := map[string]float64{}
+	durations := map[string]map[string]float64{}
 	for _, aa := range groups {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, err
@@ -149,16 +150,17 @@ func ComputeContext(ctx context.Context, start, end time.Time, runs []Run, sessi
 			continue
 		}
 		sort.Strings(ids)
-		cohort := fmt.Sprintf("%x", sha256.Sum256([]byte(a.Boot+"\n"+strings.Join(ids, "\n"))))[:24]
-		duration, found := durations[cohort]
+		cohort := cohortID(a.Boot, ids)
+		byCohort, found := durations[a.Boot]
 		if !found {
 			var err error
-			duration, err = cohortDuration(ctx, start, end, a.Boot, ids, sessions, r)
+			byCohort, err = cohortDurations(ctx, start, end, a.Boot, sessions, r)
 			if err != nil {
 				return nil, nil, err
 			}
-			durations[cohort] = duration
+			durations[a.Boot] = byCohort
 		}
+		duration := byCohort[cohort]
 		eligible := map[string]bool{}
 		for _, s := range members {
 			eligible[s.ID] = true
@@ -178,8 +180,12 @@ func ComputeContext(ctx context.Context, start, end time.Time, runs []Run, sessi
 				earliest = v.Mono
 			}
 		}
-		if len(delivery) == 0 {
-			excluded["no_eligible_delivery"]++
+		// A live checked warmup anchor can establish a missed comparison even
+		// when every eligible cohort member is silent. A historical catch-up
+		// event cannot: warmup takes precedence over slot checks in capture.
+		liveAnchor := !a.Slot.IsZero() && !a.Slot.After(a.At.Add(10*time.Second)) && a.At.Sub(a.Slot) <= 2*time.Minute
+		if len(delivery) == 0 && !liveAnchor {
+			excluded["no_live_delivery_or_anchor"]++
 			continue
 		}
 		ties := 0
@@ -234,15 +240,19 @@ func ComputeContext(ctx context.Context, start, end time.Time, runs []Run, sessi
 	return out, excluded, nil
 }
 
-// cohortDuration measures the anchor-time intervals having exactly these eligible
-// sessions, including the ten-second continuous-membership requirement.
-func cohortDuration(ctx context.Context, start, end time.Time, boot string, ids []string, sessions []Session, run Run) (float64, error) {
-	type interval struct {
-		id         string
-		start, end time.Time
+func cohortID(boot string, ids []string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(boot+"\n"+strings.Join(ids, "\n"))))[:24]
+}
+
+// One sweep computes every cohort's anchor-time duration for a boot. Equal-time
+// membership changes are applied together; zero-length windows contribute nothing.
+func cohortDurations(ctx context.Context, start, end time.Time, boot string, sessions []Session, run Run) (map[string]float64, error) {
+	type event struct {
+		at  time.Time
+		id  string
+		add bool
 	}
-	spans := []interval{}
-	bounds := []time.Time{start, end}
+	events := []event{}
 	for _, s := range sessions {
 		if s.Boot != boot {
 			continue
@@ -262,30 +272,35 @@ func cohortDuration(ctx context.Context, start, end time.Time, boot string, ids 
 		if !r.After(l) {
 			continue
 		}
-		spans = append(spans, interval{s.ID, l, r})
-		bounds = append(bounds, l, r)
+		events = append(events, event{l, s.ID, true}, event{r, s.ID, false})
 	}
-	sort.Slice(bounds, func(i, j int) bool { return bounds[i].Before(bounds[j]) })
-	seconds := 0.0
-	for i := 1; i < len(bounds); i++ {
+	sort.Slice(events, func(i, j int) bool { return events[i].at.Before(events[j].at) })
+	out := map[string]float64{}
+	active := map[string]bool{}
+	previous := start
+	for i := 0; i < len(events); {
 		if err := ctx.Err(); err != nil {
-			return 0, err
+			return nil, err
 		}
-		l, r := bounds[i-1], bounds[i]
-		if !r.After(l) {
-			continue
-		}
-		mid := l.Add(r.Sub(l) / 2)
-		members := []string{}
-		for _, s := range spans {
-			if !mid.Before(s.start) && mid.Before(s.end) {
-				members = append(members, s.id)
+		at := events[i].at
+		if at.After(previous) && len(active) >= 2 {
+			ids := make([]string, 0, len(active))
+			for id := range active {
+				ids = append(ids, id)
 			}
+			sort.Strings(ids)
+			out[cohortID(boot, ids)] += at.Sub(previous).Seconds()
 		}
-		sort.Strings(members)
-		if strings.Join(members, "\n") == strings.Join(ids, "\n") {
-			seconds += r.Sub(l).Seconds()
+		for i < len(events) && events[i].at.Equal(at) {
+			e := events[i]
+			if e.add {
+				active[e.id] = true
+			} else {
+				delete(active, e.id)
+			}
+			i++
 		}
+		previous = at
 	}
-	return seconds, nil
+	return out, nil
 }

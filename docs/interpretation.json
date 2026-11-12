@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.1",
-  "methodVersion": "association-1",
+  "methodVersion": "association-2",
   "scope": "collection_and_observed_relay_associations",
   "relayPeerIsProducer": null,
   "relayIPIsPillarIP": null,
@@ -11,7 +11,6 @@
   "producerIdentity": "address_derived_from_checked_momentum_signing_public_key",
   "consensusValidated": false,
   "rpcAgreementImplemented": true,
-  "rankingsAvailable": true,
   "eventKinds": {
     "hash_announcement": "original P2P hash arrival, eligible only after checked resolution and live filtering",
     "full_broadcast": "unsolicited full payload, eligible only after local signature/hash checks and live filtering",
@@ -67,6 +66,20 @@
     "holdoutPositiveExcessShareThreshold": 0.05,
     "numericOwnershipProbability": null,
     "unsafeRunPolicy": "exclude entire boot with drops, clock jumps or unclean shutdown",
-    "expiredRawRecomputationAvailable": false
+    "expiredRawRecomputationAvailable": false,
+    "zeroDeliveryComparisons": "Included only with a checked live slot; historical warmup anchors stay excluded.",
+    "deterministicBounds": "Exclude whole affected hour and continue later hours."
+  },
+  "associationSummariesImplemented": true,
+  "availability": {
+    "associationSummariesAvailable": "Current-method rows exist and chain continuity is resolved; not a sample-size or holdout qualification.",
+    "deprecatedAliases": [
+      "dataQuality.rankingsAvailable",
+      "status.rankingAvailable"
+    ],
+    "qualificationFields": [
+      "associationStatus",
+      "holdout.result"
+    ]
   }
 }

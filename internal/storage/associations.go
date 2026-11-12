@@ -6,26 +6,48 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/0x3639/go-zenon-pillar-version/internal/analysis"
 )
 
+type analysisBoundError string
+
+func (e analysisBoundError) Error() string { return string(e) }
+
 // AnalyzeNext replays a single complete hour in a read snapshot, then atomically
 // replaces its summaries only if the source revision has not changed. A two-minute
 // grace permits reference reconciliation. Late resolution/reorgs dirty the hour.
-func (s *Store) AnalyzeNext(ctx context.Context, now time.Time) (bool, error) {
+func (s *Store) AnalyzeNext(ctx context.Context, now time.Time) (worked bool, result error) {
 	if s.ContinuityUnresolved(ctx) {
 		return false, errors.New("chain continuity unresolved")
 	}
 	var hour, revision int64
-	err := s.read.QueryRowContext(ctx, `SELECT hour,revision FROM association_hours WHERE revision<>computed_revision AND hour+3600<=? ORDER BY hour LIMIT 1`, now.Add(-2*time.Minute).Unix()).Scan(&hour, &revision)
+	err := s.read.QueryRowContext(ctx, `SELECT hour,revision FROM association_hours WHERE revision<>computed_revision AND hour+3600<=? AND retry_after<=? ORDER BY hour LIMIT 1`, now.Add(-2*time.Minute).Unix(), now.Unix()).Scan(&hour, &revision)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
+	// An hour that times out must not monopolize the oldest-first queue.
+	// Use a short independent write budget because the work context may expire.
+	defer func() {
+		if result == nil || errors.Is(result, context.Canceled) {
+			return
+		}
+		rc, cancel := context.WithTimeout(context.WithoutCancel(ctx), 500*time.Millisecond)
+		defer cancel()
+		message := result.Error()
+		if len(message) > 256 {
+			message = message[:256]
+		}
+		_, e := s.write.ExecContext(rc, `UPDATE association_hours SET retry_after=?+min(900,30*(1<<min(failures,5))),failures=min(65535,failures+1),last_error=? WHERE hour=? AND revision=? AND computed_revision<>revision`, now.Unix(), message, hour, revision)
+		if e != nil {
+			result = errors.Join(result, fmt.Errorf("record analysis retry: %w", e))
+		}
+	}()
 	start := time.Unix(hour, 0).UTC()
 	end := start.Add(time.Hour)
 	parts := []analysis.Part{}
@@ -36,11 +58,17 @@ func (s *Store) AnalyzeNext(ctx context.Context, now time.Time) (bool, error) {
 	} else {
 		parts, exclusions, err = s.analyzeHour(ctx, start, end)
 		if err != nil {
-			return false, err
+			var bound analysisBoundError
+			if !errors.As(err, &bound) {
+				return false, err
+			}
+			parts = nil
+			exclusions = map[string]int{string(bound): 1}
 		}
 	}
 	if len(parts) > 4096 {
-		return false, errors.New("analysis part-per-hour bound exceeded")
+		parts = nil
+		exclusions = map[string]int{"analysis_parts_bound_exceeded": 1}
 	}
 	writeCtx, stopWrite := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer stopWrite()
@@ -59,7 +87,21 @@ func (s *Store) AnalyzeNext(ctx context.Context, now time.Time) (bool, error) {
 	if _, err = tx.ExecContext(writeCtx, "DELETE FROM association_parts WHERE hour=?", hour); err != nil {
 		return false, err
 	}
+	if _, err = tx.ExecContext(writeCtx, "DELETE FROM association_session_refs WHERE hour=?", hour); err != nil {
+		return false, err
+	}
+	refs := map[string]bool{}
 	for _, p := range parts {
+		for _, sid := range p.Members {
+			key := p.Cohort + ":" + sid
+			if refs[key] {
+				continue
+			}
+			refs[key] = true
+			if _, err = tx.ExecContext(writeCtx, "INSERT INTO association_session_refs(hour,cohort,session_id) VALUES(?,?,?)", hour, p.Cohort, sid); err != nil {
+				return false, err
+			}
+		}
 		b, e := json.Marshal(p)
 		if e != nil {
 			return false, e
@@ -68,11 +110,13 @@ func (s *Store) AnalyzeNext(ctx context.Context, now time.Time) (bool, error) {
 			return false, err
 		}
 	}
-	if _, err = tx.ExecContext(writeCtx, `INSERT OR IGNORE INTO association_evidence(hour,hash) SELECT ?,hash FROM arrivals WHERE arrived_at>=? AND arrived_at<? AND kind IN ('hash_announcement','full_broadcast')`, hour, start.UnixMilli(), end.Add(10*time.Second).UnixMilli()); err != nil {
-		return false, err
+	if len(parts) > 0 {
+		if _, err = tx.ExecContext(writeCtx, `INSERT OR IGNORE INTO association_evidence(hour,hash) SELECT ?,hash FROM arrivals WHERE arrived_at>=? AND arrived_at<? AND kind IN ('hash_announcement','full_broadcast')`, hour, start.UnixMilli(), end.Add(analysis.Window).UnixMilli()); err != nil {
+			return false, err
+		}
 	}
 	b, _ := json.Marshal(exclusions)
-	if _, err = tx.ExecContext(writeCtx, "UPDATE association_hours SET computed_revision=?,computed_at=?,exclusions=? WHERE hour=?", revision, now.UnixMilli(), string(b), hour); err != nil {
+	if _, err = tx.ExecContext(writeCtx, "UPDATE association_hours SET computed_revision=?,computed_at=?,exclusions=?,retry_after=0,failures=0,last_error='' WHERE hour=?", revision, now.UnixMilli(), string(b), hour); err != nil {
 		return false, err
 	}
 	return true, tx.Commit()
@@ -87,7 +131,7 @@ func (s *Store) analyzeHour(ctx context.Context, start, end time.Time) ([]analys
 	runs := []analysis.Run{}
 	sessions := []analysis.Session{}
 	arrivals := []analysis.Arrival{}
-	rows, err := tx.QueryContext(ctx, `SELECT boot_id,last_seen,drops,clock_jumps,unclean FROM runs WHERE started_at<? AND (stopped_at IS NULL OR stopped_at>=?) LIMIT 129`, end.Add(10*time.Second).UnixMilli(), start.Add(-130*time.Second).UnixMilli())
+	rows, err := tx.QueryContext(ctx, `SELECT boot_id,last_seen,drops,clock_jumps,unclean FROM runs WHERE started_at<? AND (stopped_at IS NULL OR stopped_at>=?) LIMIT 129`, end.Add(analysis.Window).UnixMilli(), start.Add(-130*time.Second).UnixMilli())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -110,9 +154,9 @@ func (s *Store) analyzeHour(ctx context.Context, start, end time.Time) ([]analys
 		return nil, nil, err
 	}
 	if len(runs) > 128 {
-		return nil, nil, errors.New("analysis run bound exceeded")
+		return nil, nil, analysisBoundError("analysis_run_bound_exceeded")
 	}
-	rows, err = tx.QueryContext(ctx, `SELECT session_id,boot_id,peer_id,ip,advertised_version,ready_at,start_mono,ended_at,end_mono FROM sessions WHERE ready_at<? AND (ended_at IS NULL OR ended_at>=?) LIMIT 2049`, end.Add(10*time.Second).UnixMilli(), start.UnixMilli())
+	rows, err = tx.QueryContext(ctx, `SELECT session_id,boot_id,peer_id,ip,advertised_version,ready_at,start_mono,ended_at,end_mono FROM sessions WHERE ready_at<? AND (ended_at IS NULL OR ended_at>=?) LIMIT 2049`, end.Add(analysis.Window).UnixMilli(), start.UnixMilli())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -136,26 +180,29 @@ func (s *Store) analyzeHour(ctx context.Context, start, end time.Time) ([]analys
 		return nil, nil, err
 	}
 	if len(sessions) > 2048 {
-		return nil, nil, errors.New("analysis session bound exceeded")
+		return nil, nil, analysisBoundError("analysis_session_bound_exceeded")
 	}
 	// The correlated minimum prevents a repeated/late delivery crossing an hour
 	// boundary from becoming a new comparison. Requested responses are never inputs.
 	rows, err = tx.QueryContext(ctx, `SELECT a.boot_id,a.session_id,a.hash,a.kind,a.arrived_ns,a.monotonic_ns,a.eligible,
- coalesce(m.producer,''),coalesce(m.verification,'unresolved'),coalesce(m.signer_conflict,0)
+ coalesce(m.producer,''),coalesce(m.verification,'unresolved'),coalesce(m.signer_conflict,0),coalesce(m.timestamp,0)
  FROM arrivals a LEFT JOIN momentums m ON m.hash=a.hash
  WHERE a.arrived_at>=? AND a.arrived_at<? AND a.kind IN ('hash_announcement','full_broadcast')
  AND (SELECT min(b.arrived_ns) FROM arrivals b WHERE b.hash=a.hash AND b.boot_id=a.boot_id AND b.kind=a.kind)>=?
- ORDER BY a.arrived_at,a.id LIMIT 20001`, start.UnixMilli(), end.Add(10*time.Second).UnixMilli(), start.UnixNano())
+ ORDER BY a.arrived_at,a.id LIMIT 20001`, start.UnixMilli(), end.Add(analysis.Window).UnixMilli(), start.UnixNano())
 	if err != nil {
 		return nil, nil, err
 	}
 	for rows.Next() {
 		var a analysis.Arrival
-		var ns int64
-		if err = rows.Scan(&a.Boot, &a.Session, &a.Hash, &a.Kind, &ns, &a.Mono, &a.Eligible, &a.Producer, &a.Verification, &a.SignerConflict); err != nil {
+		var ns, slot int64
+		if err = rows.Scan(&a.Boot, &a.Session, &a.Hash, &a.Kind, &ns, &a.Mono, &a.Eligible, &a.Producer, &a.Verification, &a.SignerConflict, &slot); err != nil {
 			break
 		}
 		a.At = time.Unix(0, ns).UTC()
+		if slot > 0 {
+			a.Slot = time.Unix(slot, 0).UTC()
+		}
 		arrivals = append(arrivals, a)
 	}
 	if err == nil {
@@ -166,7 +213,7 @@ func (s *Store) analyzeHour(ctx context.Context, start, end time.Time) ([]analys
 		return nil, nil, err
 	}
 	if len(arrivals) > 20000 {
-		return nil, nil, errors.New("analysis arrival bound exceeded")
+		return nil, nil, analysisBoundError("analysis_arrival_bound_exceeded")
 	}
 	parts, excluded, computeErr := analysis.ComputeContext(ctx, start, end, runs, sessions, arrivals)
 	if computeErr != nil {
@@ -209,6 +256,8 @@ type AssociationPage struct {
 	Reason          string         `json:"reason,omitempty"`
 	ProducerVersion *string        `json:"producerSoftwareVersion"`
 	ProcessedHours  int            `json:"processedHours"`
+	RetryingHours   int            `json:"retryingHours"`
+	ExcludedHours   map[string]int `json:"excludedHoursByReason"`
 	PendingHours    int            `json:"pendingHours"`
 	MissingHours    int            `json:"missingHours"`
 	Exclusions      map[string]int `json:"excludedComparisonsByReason"`
@@ -217,7 +266,7 @@ type AssociationPage struct {
 }
 
 func (s *Store) Associations(ctx context.Context, p Query) (AssociationPage, error) {
-	out := AssociationPage{Data: []analysis.Row{}, Available: true, Exclusions: map[string]int{}, Method: analysis.Method}
+	out := AssociationPage{Data: []analysis.Row{}, Available: true, Exclusions: map[string]int{}, ExcludedHours: map[string]int{}, Method: analysis.Method}
 	if p.Limit < 1 || p.Limit > 500 || p.Offset < 0 || p.Offset > 100000 || !p.End.After(p.Start) || p.End.Sub(p.Start) > 90*24*time.Hour || !p.Start.Equal(p.Start.Truncate(time.Hour)) || !p.End.Equal(p.End.Truncate(time.Hour)) {
 		return out, errors.New("invalid association query bounds")
 	}
@@ -244,19 +293,22 @@ func (s *Store) Associations(ctx context.Context, p Query) (AssociationPage, err
 		return out, nil
 	}
 
-	rows, err := tx.QueryContext(ctx, "SELECT hour,revision,computed_revision,computed_at,exclusions FROM association_hours WHERE hour>=? AND hour<? ORDER BY hour", p.Start.Unix(), p.End.Unix())
+	rows, err := tx.QueryContext(ctx, "SELECT hour,revision,computed_revision,computed_at,exclusions,retry_after FROM association_hours WHERE hour>=? AND hour<? ORDER BY hour", p.Start.Unix(), p.End.Unix())
 	if err != nil {
 		return out, err
 	}
 	for rows.Next() {
-		var h, rev, done int64
+		var h, rev, done, retryAfter int64
 		var at sql.NullInt64
 		var raw string
-		if err = rows.Scan(&h, &rev, &done, &at, &raw); err != nil {
+		if err = rows.Scan(&h, &rev, &done, &at, &raw, &retryAfter); err != nil {
 			break
 		}
 		if rev != done {
 			out.PendingHours++
+			if retryAfter > time.Now().Unix() {
+				out.RetryingHours++
+			}
 			continue
 		}
 		out.ProcessedHours++
@@ -272,6 +324,9 @@ func (s *Store) Associations(ctx context.Context, p Query) (AssociationPage, err
 		}
 		for k, v := range reasons {
 			out.Exclusions[k] += v
+			if k == "raw_history_expired" || strings.HasPrefix(k, "analysis_") {
+				out.ExcludedHours[k] += v
+			}
 		}
 	}
 	if err == nil {

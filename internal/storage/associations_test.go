@@ -144,10 +144,17 @@ func TestLateBoundaryResolutionInvalidatesAnchorHour(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	found := false
 	for _, r := range page.Data {
-		if r.Peer == b.PeerID && r.Received != 2 {
-			t.Fatal(r)
+		if r.Peer == b.PeerID {
+			found = true
+			if r.Received != 2 {
+				t.Fatal(r)
+			}
 		}
+	}
+	if !found {
+		t.Fatal("resolved peer missing", page)
 	}
 }
 func TestUnsafeRunRevokesSummariesAndCleanRestartPreservesThem(t *testing.T) {
@@ -215,7 +222,7 @@ func TestMigrationFromSchemaOnePreservesEvidence(t *testing.T) {
 	}
 	s.read.QueryRow("PRAGMA user_version").Scan(&version)
 	s.read.QueryRow("SELECT count(*) FROM association_hours WHERE revision<>computed_revision").Scan(&pending)
-	if utc != "1970-01-01T00:00:00.123456789Z" || ns != 123456789 || mono != 987654321 || pending != 1 || version != 2 {
+	if utc != "1970-01-01T00:00:00.123456789Z" || ns != 123456789 || mono != 987654321 || pending != 1 || version != SchemaVersion {
 		t.Fatal(utc, ns, mono, pending, version)
 	}
 }

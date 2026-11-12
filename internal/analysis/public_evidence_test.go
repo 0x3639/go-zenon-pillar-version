@@ -64,6 +64,9 @@ func TestPublicEvidenceReplay(t *testing.T) {
 	for _, a := range source.Arrivals {
 		arrivals = append(arrivals, Arrival{Boot: a.Boot, Session: a.Session, Hash: a.Hash, Kind: a.Kind, At: a.At, Mono: a.Mono, Eligible: a.Eligible, Producer: a.Producer, Verification: a.Verification})
 	}
+	if len(arrivals) != 190 || len(sessions) != 4 {
+		t.Fatal("public evidence sample truncated", len(arrivals), len(sessions))
+	}
 	parts, excluded := Compute(source.Start, source.End, runs, sessions, arrivals)
 	if len(parts) == 0 || len(excluded) != 0 {
 		t.Fatal(len(parts), excluded)
@@ -78,6 +81,9 @@ func TestPublicEvidenceReplay(t *testing.T) {
 		}
 		eligible += row.Eligible
 		received += row.Received
+	}
+	if len(rows) != 168 || eligible != 168 || received != 125 {
+		t.Fatal("public evidence totals changed", len(rows), eligible, received)
 	}
 	t.Logf("public compatibility sample: %d arrivals, %d association rows, %d eligible peer comparisons, %d deliveries; all insufficient_data", len(arrivals), len(rows), eligible, received)
 }

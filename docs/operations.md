@@ -9,10 +9,14 @@ Changing the domain does not change the observer identity.
 
 For 0.1 → 0.2, preserve `OBSERVER_ID`, the volume, peer seeds, and traffic budgets.
 Set `RUN_DURATION=0s`; the previous `65m` value remains finite. Service mode is fixed
-in the normal Compose definition. SQLite schema 2 is created next to the old files.
+in the normal Compose definition. SQLite schema 1 is created next to the old files.
 Legacy JSONL/reports remain untouched and are not imported. The same identity and
 unexpired traffic reservations are reused. There are no writes to Observatory
 containers, storage, identity mappings, or discovery configuration.
+
+For 0.2 → 0.3.0, SQLite advances to schema 2. For 0.3.0 → 0.3.1, it advances
+to schema 3; schema 1 can also upgrade directly. Back up before changing schemas.
+See [corrections and replay](association-corrections.md).
 
 Allow an active feasibility experiment to finish before deploying this update.
 Use four configured public peers on distinct IPs for the next pilot. A two-seed
@@ -50,8 +54,12 @@ possible. Maintenance can recover space and resume collection. SQLite writer or
 budget-persistence failures fail closed until an operator fixes the cause and
 restarts. Queue saturation/cache overflow yields `capture_paused`, visible drop
 counts and failed readiness; restart only after inspecting the cause. Clock jumps
-are recorded and invalidate capture eligibility for the run. No rankings are
-published in this release.
+are recorded and invalidate capture eligibility for the run.
+`associationSummariesAvailable` means current-method summary rows exist and chain
+continuity is resolved. It does not mean any row meets the 100-sample/three-day
+threshold. `rankingsAvailable` in data quality and `rankingAvailable` in status
+remain deprecated aliases with exactly the same meaning; use each row’s
+`associationStatus` and holdout result to interpret it.
 
 `/healthz` is liveness; `/readyz` is initialization/write readiness. External RPC
 outages alone do not fail readiness. The status snapshot is marked stale after

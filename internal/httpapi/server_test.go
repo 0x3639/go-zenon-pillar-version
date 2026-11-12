@@ -200,3 +200,24 @@ func TestStatusDoesNotClaimRankingsBeforeAnalysis(t *testing.T) {
 		t.Fatal(w.Body.String())
 	}
 }
+
+func TestPillarWithoutCompleteHourHasNullAssociationBounds(t *testing.T) {
+	a := testAPI(t)
+	h := time.Now().UTC().Truncate(time.Hour).Add(-3 * time.Hour)
+	q := url.Values{"from": {h.Add(15 * time.Minute).Format(time.RFC3339)}, "to": {h.Add(45 * time.Minute).Format(time.RFC3339)}}
+	w := httptest.NewRecorder()
+	a.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/pillars/z1qqjxm297wcxhuqlqtcrjh8x3e7e6e0gtfj4cq4?"+q.Encode(), nil))
+	var got struct {
+		Result struct {
+			Start   *time.Time     `json:"associationWindowStart"`
+			End     *time.Time     `json:"associationWindowEnd"`
+			Summary map[string]any `json:"associationSummary"`
+		}
+	}
+	if e := json.Unmarshal(w.Body.Bytes(), &got); e != nil {
+		t.Fatal(e)
+	}
+	if w.Code != 200 || got.Result.Start != nil || got.Result.End != nil || got.Result.Summary["reason"] != "no_complete_hours" {
+		t.Fatal(w.Body.String())
+	}
+}

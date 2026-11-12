@@ -20,7 +20,7 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-const SchemaVersion = 2
+const SchemaVersion = 3
 const QueryTimeout = 2 * time.Second
 
 type Store struct {
@@ -68,24 +68,15 @@ func Open(dir string, budget int64, retention int) (*Store, error) {
 			return nil, err
 		}
 	}
+	cancel()
 	for next := version + 1; next <= SchemaVersion; next++ {
-		name := map[int]string{1: "001_initial.sql", 2: "002_associations.sql"}[next]
-		b, readErr := migrations.ReadFile("migrations/" + name)
-		if readErr != nil {
-			return nil, readErr
-		}
-		tx, e := w.BeginTx(ctx, nil)
-		if e != nil {
-			return nil, e
-		}
-		if _, e = tx.ExecContext(ctx, string(b)); e != nil {
-			tx.Rollback()
-			return nil, e
-		}
-		if e = tx.Commit(); e != nil {
-			return nil, e
+		name := map[int]string{1: "001_initial.sql", 2: "002_associations.sql", 3: "003_association_corrections.sql"}[next]
+		if err = applyMigration(w, name); err != nil {
+			return nil, err
 		}
 	}
+	ctx, postCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer postCancel()
 	// Reserve at least 25% of the total budget for WAL, identity, state, and backups.
 	var pageSize int64
 	if err = w.QueryRowContext(ctx, "PRAGMA page_size").Scan(&pageSize); err != nil {
@@ -116,6 +107,27 @@ func Open(dir string, budget int64, retention int) (*Store, error) {
 	success = true
 	return s, nil
 }
+
+// Each migration has a separate deadline from connection/startup checks.
+// Transactions roll back on interruption; no partly migrated schema is committed.
+func applyMigration(db *sql.DB, name string) error {
+	b, err := migrations.ReadFile("migrations/" + name)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, string(b)); err != nil {
+		return fmt.Errorf("migration %s: %w", name, err)
+	}
+	return tx.Commit()
+}
+
 func (s *Store) Close() {
 	if s.read != nil {
 		s.read.Close()
@@ -278,7 +290,7 @@ func (s *Store) Maintenance(ctx context.Context, now time.Time) error {
 		{"DELETE FROM association_parts WHERE rowid IN (SELECT rowid FROM association_parts WHERE hour<? LIMIT 1000)", []any{now.Add(-90 * 24 * time.Hour).Unix()}},
 		{"DELETE FROM association_hours WHERE hour IN (SELECT hour FROM association_hours WHERE hour<? AND NOT EXISTS(SELECT 1 FROM association_parts WHERE association_parts.hour=association_hours.hour) LIMIT 24)", []any{now.Add(-90 * 24 * time.Hour).Unix()}},
 		{"DELETE FROM arrivals WHERE id IN (SELECT id FROM arrivals WHERE arrived_at<? ORDER BY arrived_at LIMIT 1000)", []any{cutoff}},
-		{"DELETE FROM sessions WHERE session_id IN (SELECT session_id FROM sessions WHERE ended_at<? AND NOT EXISTS(SELECT 1 FROM arrivals WHERE arrivals.session_id=sessions.session_id) AND NOT EXISTS(SELECT 1 FROM association_parts WHERE association_parts.boot_id=sessions.boot_id) LIMIT 1000)", []any{cutoff}},
+		{"DELETE FROM sessions WHERE session_id IN (SELECT session_id FROM sessions WHERE ended_at<? AND NOT EXISTS(SELECT 1 FROM arrivals WHERE arrivals.session_id=sessions.session_id) AND NOT EXISTS(SELECT 1 FROM association_session_refs WHERE association_session_refs.session_id=sessions.session_id) LIMIT 1000)", []any{cutoff}},
 		{"DELETE FROM momentums WHERE hash IN (SELECT hash FROM momentums WHERE last_seen<? AND NOT EXISTS(SELECT 1 FROM arrivals WHERE arrivals.hash=momentums.hash) AND NOT EXISTS(SELECT 1 FROM association_evidence WHERE association_evidence.hash=momentums.hash) LIMIT 1000)", []any{cutoff}},
 		{"DELETE FROM pillar_snapshots WHERE id IN (SELECT id FROM pillar_snapshots WHERE observed_at<? LIMIT 1000)", []any{cutoff}},
 		{"DELETE FROM gaps WHERE id IN (SELECT id FROM gaps WHERE observed_at<? LIMIT 1000)", []any{cutoff}},

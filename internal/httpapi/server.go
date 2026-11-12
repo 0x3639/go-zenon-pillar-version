@@ -215,14 +215,16 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				ap.End = settled
 			}
 			associations := storage.AssociationPage{Data: []analysis.Row{}, Reason: "no_complete_hours"}
+			var associationStart, associationEnd *time.Time
 			if ap.End.After(ap.Start) {
+				associationStart, associationEnd = &ap.Start, &ap.End
 				associations, e = a.Store.Associations(ctx, ap)
 				if e != nil {
 					a.failure(w, r, 503, "association_query_unavailable_reduce_window_or_page_size")
 					return
 				}
 			}
-			payload = map[string]any{"producerAddress": p.Producer, "producerSoftwareVersion": nil, "nameSnapshots": page.Data, "nameSnapshotsNextOffset": page.NextOffset, "momentums": momentums.Data, "momentumsNextOffset": momentums.NextOffset, "associations": associations.Data, "associationsNextOffset": associations.NextOffset, "associationWindowStart": ap.Start, "associationWindowEnd": ap.End, "associationSummary": map[string]any{"processedHours": associations.ProcessedHours, "pendingHours": associations.PendingHours, "missingHours": associations.MissingHours, "excludedComparisonsByReason": associations.Exclusions, "reason": associations.Reason}, "identityAssertions": []any{}, "associationAnalysisAvailable": associations.Available}
+			payload = map[string]any{"producerAddress": p.Producer, "producerSoftwareVersion": nil, "nameSnapshots": page.Data, "nameSnapshotsNextOffset": page.NextOffset, "momentums": momentums.Data, "momentumsNextOffset": momentums.NextOffset, "associations": associations.Data, "associationsNextOffset": associations.NextOffset, "associationWindowStart": associationStart, "associationWindowEnd": associationEnd, "associationSummary": map[string]any{"processedHours": associations.ProcessedHours, "pendingHours": associations.PendingHours, "retryingHours": associations.RetryingHours, "excludedHoursByReason": associations.ExcludedHours, "missingHours": associations.MissingHours, "excludedComparisonsByReason": associations.Exclusions, "reason": associations.Reason}, "identityAssertions": []any{}, "associationAnalysisAvailable": associations.Available}
 		}
 	}
 	quality, e := a.Store.Quality(ctx, p.Start, p.End)
@@ -236,6 +238,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	quality["ready"] = snapshot.Ready
 	if path == "/api/v1/status" {
 		payload.(map[string]any)["rankingAvailable"] = quality["rankingsAvailable"]
+		payload.(map[string]any)["associationSummariesAvailable"] = quality["associationSummariesAvailable"]
 	}
 	body := map[string]any{"schemaVersion": SchemaVersion, "observerId": a.Observer, "generatedAt": snapshot.Updated, "windowStart": p.Start, "windowEnd": p.End, "methodVersion": MethodVersion, "dataQuality": quality, "result": payload}
 	a.respond(w, r, 200, body, path != "/api/v1/status")
