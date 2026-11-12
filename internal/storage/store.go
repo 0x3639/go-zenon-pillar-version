@@ -20,14 +20,15 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-const SchemaVersion = 1
+const SchemaVersion = 2
 const QueryTimeout = 2 * time.Second
 
 type Store struct {
-	write, read *sql.DB
-	dir         string
-	budget      int64
-	retention   int
+	write, read     *sql.DB
+	dir             string
+	budget          int64
+	retention       int
+	analysisQueries chan struct{}
 }
 
 func Open(dir string, budget int64, retention int) (*Store, error) {
@@ -46,7 +47,7 @@ func Open(dir string, budget int64, retention int) (*Store, error) {
 		return nil, err
 	}
 	w.SetMaxOpenConns(1)
-	s := &Store{write: w, dir: dir, budget: budget, retention: retention}
+	s := &Store{write: w, dir: dir, budget: budget, retention: retention, analysisQueries: make(chan struct{}, 1)}
 	success := false
 	defer func() {
 		if !success {
@@ -66,7 +67,13 @@ func Open(dir string, budget int64, retention int) (*Store, error) {
 		if _, err = w.ExecContext(ctx, "PRAGMA auto_vacuum=INCREMENTAL"); err != nil {
 			return nil, err
 		}
-		b, _ := migrations.ReadFile("migrations/001_initial.sql")
+	}
+	for next := version + 1; next <= SchemaVersion; next++ {
+		name := map[int]string{1: "001_initial.sql", 2: "002_associations.sql"}[next]
+		b, readErr := migrations.ReadFile("migrations/" + name)
+		if readErr != nil {
+			return nil, readErr
+		}
 		tx, e := w.BeginTx(ctx, nil)
 		if e != nil {
 			return nil, e
@@ -268,9 +275,11 @@ func (s *Store) Maintenance(ctx context.Context, now time.Time) error {
 		q    string
 		args []any
 	}{
+		{"DELETE FROM association_parts WHERE rowid IN (SELECT rowid FROM association_parts WHERE hour<? LIMIT 1000)", []any{now.Add(-90 * 24 * time.Hour).Unix()}},
+		{"DELETE FROM association_hours WHERE hour IN (SELECT hour FROM association_hours WHERE hour<? AND NOT EXISTS(SELECT 1 FROM association_parts WHERE association_parts.hour=association_hours.hour) LIMIT 24)", []any{now.Add(-90 * 24 * time.Hour).Unix()}},
 		{"DELETE FROM arrivals WHERE id IN (SELECT id FROM arrivals WHERE arrived_at<? ORDER BY arrived_at LIMIT 1000)", []any{cutoff}},
-		{"DELETE FROM sessions WHERE session_id IN (SELECT session_id FROM sessions WHERE ended_at<? AND NOT EXISTS(SELECT 1 FROM arrivals WHERE arrivals.session_id=sessions.session_id) LIMIT 1000)", []any{cutoff}},
-		{"DELETE FROM momentums WHERE hash IN (SELECT hash FROM momentums WHERE last_seen<? AND NOT EXISTS(SELECT 1 FROM arrivals WHERE arrivals.hash=momentums.hash) LIMIT 1000)", []any{cutoff}},
+		{"DELETE FROM sessions WHERE session_id IN (SELECT session_id FROM sessions WHERE ended_at<? AND NOT EXISTS(SELECT 1 FROM arrivals WHERE arrivals.session_id=sessions.session_id) AND NOT EXISTS(SELECT 1 FROM association_parts WHERE association_parts.boot_id=sessions.boot_id) LIMIT 1000)", []any{cutoff}},
+		{"DELETE FROM momentums WHERE hash IN (SELECT hash FROM momentums WHERE last_seen<? AND NOT EXISTS(SELECT 1 FROM arrivals WHERE arrivals.hash=momentums.hash) AND NOT EXISTS(SELECT 1 FROM association_evidence WHERE association_evidence.hash=momentums.hash) LIMIT 1000)", []any{cutoff}},
 		{"DELETE FROM pillar_snapshots WHERE id IN (SELECT id FROM pillar_snapshots WHERE observed_at<? LIMIT 1000)", []any{cutoff}},
 		{"DELETE FROM gaps WHERE id IN (SELECT id FROM gaps WHERE observed_at<? LIMIT 1000)", []any{cutoff}},
 		{"DELETE FROM reference_checks WHERE rowid IN (SELECT rowid FROM reference_checks WHERE observed_at<? LIMIT 1000)", []any{cutoff}},

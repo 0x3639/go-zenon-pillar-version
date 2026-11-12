@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Zenon P2P Observer",
-    "version": "0.2.0",
-    "description": "Read-only collection API. See api.md for row fields and interpretation. No association analysis, reviewed assertions or 90-day aggregates. GET/HEAD/OPTIONS only; bodies rejected. Raw windows at most 24 hours within 1\u20137 day retention. 1 MiB response limit. Collections cache 30 seconds with ETags; status and health use no-store."
+    "version": "0.3.0",
+    "description": "Read-only collection and relay-association API. See api.md and association-analysis.md. Producer software versions remain null. Raw windows: at most 24 hours within raw retention. Associations: complete UTC hours, default seven days, up to 90 days within aggregate retention. GET/HEAD/OPTIONS only; bodies rejected; 1 MiB response limit. Collections cache 30 seconds with ETags."
   },
   "servers": [
     {
@@ -1173,7 +1173,7 @@
     },
     "/api/v1/associations": {
       "get": {
-        "summary": "Analysis unavailable; empty data with available=false",
+        "summary": "Observed relay associations, cohort coverage, baselines and holdouts",
         "parameters": [
           {
             "name": "from",
@@ -1181,7 +1181,8 @@
             "schema": {
               "type": "string",
               "format": "date-time"
-            }
+            },
+            "description": "UTC hour boundary; half-open complete-hour range, at most 90 days within aggregate retention."
           },
           {
             "name": "to",
@@ -1189,7 +1190,8 @@
             "schema": {
               "type": "string",
               "format": "date-time"
-            }
+            },
+            "description": "UTC hour boundary; half-open complete-hour range, at most 90 days within aggregate retention."
           },
           {
             "name": "limit",
@@ -1233,20 +1235,30 @@
               "type": "string",
               "enum": [
                 "hash_announcement",
-                "full_broadcast",
-                "requested_response",
-                "historical_or_unresolved"
+                "full_broadcast"
               ]
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Analysis unavailable; empty data with available=false",
+            "description": "Association page with explicit coverage and incomplete-data states",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "result": {
+                          "$ref": "#/components/schemas/AssociationPage"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -1272,10 +1284,11 @@
           "503": {
             "description": "Storage or query capacity unavailable"
           }
-        }
+        },
+        "description": "Default seven completed days; up to 90 days; dates must align to complete UTC hours with two-minute grace. Labels do not establish ownership. One concurrent query, five-second work deadline, 200,000 hourly-part bound. Narrow dates or page size after 503/413."
       },
       "head": {
-        "summary": "GET headers without body",
+        "summary": "Association response metadata",
         "parameters": [
           {
             "name": "from",
@@ -1283,7 +1296,8 @@
             "schema": {
               "type": "string",
               "format": "date-time"
-            }
+            },
+            "description": "UTC hour boundary; half-open complete-hour range, at most 90 days within aggregate retention."
           },
           {
             "name": "to",
@@ -1291,7 +1305,8 @@
             "schema": {
               "type": "string",
               "format": "date-time"
-            }
+            },
+            "description": "UTC hour boundary; half-open complete-hour range, at most 90 days within aggregate retention."
           },
           {
             "name": "limit",
@@ -1335,16 +1350,14 @@
               "type": "string",
               "enum": [
                 "hash_announcement",
-                "full_broadcast",
-                "requested_response",
-                "historical_or_unresolved"
+                "full_broadcast"
               ]
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Analysis unavailable; empty data with available=false"
+            "description": "Association response headers without a body"
           },
           "304": {
             "description": "ETag matched"
@@ -1421,7 +1434,7 @@
         ],
         "properties": {
           "schemaVersion": {
-            "const": "1.0"
+            "const": "1.1"
           },
           "observerId": {
             "type": "string"
@@ -1439,7 +1452,7 @@
             "format": "date-time"
           },
           "methodVersion": {
-            "const": "collection-1"
+            "const": "association-1"
           },
           "dataQuality": {
             "$ref": "#/components/schemas/DataQuality"
@@ -1453,7 +1466,7 @@
         "type": "object",
         "properties": {
           "rankingsAvailable": {
-            "const": false
+            "type": "boolean"
           },
           "producerSoftwareVersion": {
             "type": "null"
@@ -1467,10 +1480,27 @@
             "const": false
           },
           "analysisState": {
-            "const": "not_implemented"
+            "enum": [
+              "building",
+              "ready",
+              "awaiting_complete_hour",
+              "chain_continuity_unresolved"
+            ]
           },
           "captureState": {
             "type": "string"
+          },
+          "associationAnalysisImplemented": {
+            "const": true
+          },
+          "analysisProcessedHours": {
+            "type": "integer"
+          },
+          "analysisPendingHours": {
+            "type": "integer"
+          },
+          "aggregateRetentionDays": {
+            "const": 90
           }
         },
         "additionalProperties": true
@@ -1608,7 +1638,7 @@
             "type": "string"
           },
           "rankingEligible": {
-            "const": false
+            "type": "null"
           },
           "verificationState": {
             "type": "string"
@@ -1634,6 +1664,9 @@
           },
           "producerSoftwareVersion": {
             "type": "null"
+          },
+          "rankingEligibilityReason": {
+            "const": "determined_by_comparison_window"
           }
         }
       },
@@ -1708,6 +1741,388 @@
           },
           "uncleanShutdown": {
             "type": "boolean"
+          }
+        }
+      },
+      "Counts": {
+        "type": "object",
+        "required": [
+          "eligibleCount",
+          "receivedCount",
+          "firstArrivalCount",
+          "tieCount"
+        ],
+        "properties": {
+          "eligibleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "receivedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "firstArrivalCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tieCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Measurement": {
+        "type": "object",
+        "properties": {
+          "eligibleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "receivedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "firstArrivalCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tieCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "firstArrivalShare": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "deliveryCoverage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "tieShare": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "medianRelativeDelayMs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "p95RelativeDelayMs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "baselineFirstArrivalShare": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "excessFirstArrivalShare": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "otherProducers": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "baselineMatchedEligibleCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Association": {
+        "type": "object",
+        "required": [
+          "eligibleCount",
+          "receivedCount",
+          "firstArrivalCount",
+          "tieCount",
+          "firstArrivalShare",
+          "deliveryCoverage",
+          "tieShare",
+          "medianRelativeDelayMs",
+          "p95RelativeDelayMs",
+          "baselineFirstArrivalShare",
+          "excessFirstArrivalShare",
+          "otherProducers",
+          "baselineMatchedEligibleCount",
+          "producerAddress",
+          "peerId",
+          "ip",
+          "cohortId",
+          "bootId",
+          "pillarName",
+          "advertisedVersion",
+          "versionObservedAt",
+          "firstObservedAt",
+          "lastObservedAt",
+          "pillarNameObservedAt",
+          "sampleCount",
+          "utcDayCount",
+          "activeCompetitorCount",
+          "producerSoftwareVersion",
+          "associationStatus",
+          "eventKind",
+          "rawEvidenceAvailable",
+          "cohortSessionIds",
+          "connectedDurationSeconds",
+          "perDay",
+          "holdout"
+        ],
+        "properties": {
+          "eligibleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "receivedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "firstArrivalCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tieCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "firstArrivalShare": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "deliveryCoverage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "tieShare": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "medianRelativeDelayMs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "p95RelativeDelayMs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "baselineFirstArrivalShare": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "excessFirstArrivalShare": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "otherProducers": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "baselineMatchedEligibleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "producerAddress": {
+            "type": "string"
+          },
+          "peerId": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "cohortId": {
+            "type": "string"
+          },
+          "bootId": {
+            "type": "string"
+          },
+          "pillarName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "advertisedVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "versionObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "firstObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pillarNameObservedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "sampleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "utcDayCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "activeCompetitorCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "producerSoftwareVersion": {
+            "type": "null"
+          },
+          "associationStatus": {
+            "enum": [
+              "insufficient_data",
+              "observed_relay_association"
+            ]
+          },
+          "eventKind": {
+            "enum": [
+              "hash_announcement",
+              "full_broadcast"
+            ]
+          },
+          "rawEvidenceAvailable": {
+            "type": "boolean"
+          },
+          "cohortSessionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "connectedDurationSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "perDay": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Measurement"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "utcDay": {
+                      "type": "string",
+                      "format": "date"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "holdout": {
+            "type": "object",
+            "properties": {
+              "splitAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "earlier": {
+                "$ref": "#/components/schemas/Measurement"
+              },
+              "later": {
+                "$ref": "#/components/schemas/Measurement"
+              },
+              "result": {
+                "enum": [
+                  "insufficient_data",
+                  "persistent_positive_pattern",
+                  "no_persistent_specific_advantage",
+                  "unstable_pattern"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "AssociationPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/Association"
+            }
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "nextOffset": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "computedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "processedHours": {
+            "type": "integer"
+          },
+          "pendingHours": {
+            "type": "integer"
+          },
+          "missingHours": {
+            "type": "integer"
+          },
+          "excludedComparisonsByReason": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "producerSoftwareVersion": {
+            "type": "null"
+          },
+          "methodVersion": {
+            "const": "association-1"
           }
         }
       }

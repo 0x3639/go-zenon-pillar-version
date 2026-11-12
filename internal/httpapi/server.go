@@ -14,12 +14,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/0x3639/go-zenon-pillar-version/internal/analysis"
 	"github.com/0x3639/go-zenon-pillar-version/internal/storage"
 	"github.com/zenon-network/go-zenon/common/types"
 )
 
 const MaxResponseBytes = 1024 * 1024
-const MethodVersion = "collection-1"
+const MethodVersion = analysis.Method
+const SchemaVersion = "1.1"
 
 type Snapshot struct {
 	Report  map[string]any `json:"report"`
@@ -140,7 +142,11 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.failure(w, r, 503, "query_capacity")
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	deadline := 3 * time.Second
+	if r.URL.Path == "/api/v1/associations" || strings.HasPrefix(r.URL.Path, "/api/v1/pillars/") {
+		deadline = 7 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), deadline)
 	defer cancel()
 	p, err := a.parse(r)
 	if err != nil {
@@ -166,7 +172,12 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		resource = "arrivals"
 	case path == "/api/v1/associations":
-		payload = map[string]any{"data": []any{}, "nextOffset": nil, "available": false, "reason": "association_analysis_not_implemented", "producerSoftwareVersion": nil}
+		page, e := a.Store.Associations(ctx, p)
+		if e != nil {
+			a.failure(w, r, 503, "association_query_unavailable_reduce_window_or_page_size")
+			return
+		}
+		payload = page
 	case strings.HasPrefix(path, "/api/v1/pillars/"):
 		p.Producer = strings.TrimPrefix(path, "/api/v1/pillars/")
 		if _, e := types.ParseAddress(p.Producer); e != nil {
@@ -193,7 +204,25 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				a.failure(w, r, 503, "storage_query_unavailable")
 				return
 			}
-			payload = map[string]any{"producerAddress": p.Producer, "producerSoftwareVersion": nil, "nameSnapshots": page.Data, "nameSnapshotsNextOffset": page.NextOffset, "momentums": momentums.Data, "momentumsNextOffset": momentums.NextOffset, "associations": []any{}, "identityAssertions": []any{}, "associationAnalysisAvailable": false}
+			ap := p
+			ap.Start = p.Start.Truncate(time.Hour)
+			if ap.Start.Before(p.Start) {
+				ap.Start = ap.Start.Add(time.Hour)
+			}
+			ap.End = p.End.Truncate(time.Hour)
+			settled := time.Now().UTC().Add(-2 * time.Minute).Truncate(time.Hour)
+			if ap.End.After(settled) {
+				ap.End = settled
+			}
+			associations := storage.AssociationPage{Data: []analysis.Row{}, Reason: "no_complete_hours"}
+			if ap.End.After(ap.Start) {
+				associations, e = a.Store.Associations(ctx, ap)
+				if e != nil {
+					a.failure(w, r, 503, "association_query_unavailable_reduce_window_or_page_size")
+					return
+				}
+			}
+			payload = map[string]any{"producerAddress": p.Producer, "producerSoftwareVersion": nil, "nameSnapshots": page.Data, "nameSnapshotsNextOffset": page.NextOffset, "momentums": momentums.Data, "momentumsNextOffset": momentums.NextOffset, "associations": associations.Data, "associationsNextOffset": associations.NextOffset, "associationWindowStart": ap.Start, "associationWindowEnd": ap.End, "associationSummary": map[string]any{"processedHours": associations.ProcessedHours, "pendingHours": associations.PendingHours, "missingHours": associations.MissingHours, "excludedComparisonsByReason": associations.Exclusions, "reason": associations.Reason}, "identityAssertions": []any{}, "associationAnalysisAvailable": associations.Available}
 		}
 	}
 	quality, e := a.Store.Quality(ctx, p.Start, p.End)
@@ -205,7 +234,10 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	quality["captureState"] = snapshot.Report["captureState"]
 	quality["statusUpdatedAt"] = snapshot.Updated
 	quality["ready"] = snapshot.Ready
-	body := map[string]any{"schemaVersion": "1.0", "observerId": a.Observer, "generatedAt": snapshot.Updated, "windowStart": p.Start, "windowEnd": p.End, "methodVersion": MethodVersion, "dataQuality": quality, "result": payload}
+	if path == "/api/v1/status" {
+		payload.(map[string]any)["rankingAvailable"] = quality["rankingsAvailable"]
+	}
+	body := map[string]any{"schemaVersion": SchemaVersion, "observerId": a.Observer, "generatedAt": snapshot.Updated, "windowStart": p.Start, "windowEnd": p.End, "methodVersion": MethodVersion, "dataQuality": quality, "result": payload}
 	a.respond(w, r, 200, body, path != "/api/v1/status")
 }
 func (a *API) parse(r *http.Request) (storage.Query, error) {
@@ -213,6 +245,15 @@ func (a *API) parse(r *http.Request) (storage.Query, error) {
 	now := time.Now().UTC()
 	end := now.Truncate(30 * time.Second)
 	p := storage.Query{Start: end.Add(-24 * time.Hour), End: end, Limit: 100}
+	association := r.URL.Path == "/api/v1/associations"
+	window := 24 * time.Hour
+	retention := time.Duration(a.Retention) * 24 * time.Hour
+	if association {
+		window = 90 * 24 * time.Hour
+		retention = 90 * 24 * time.Hour
+		p.End = now.Add(-2 * time.Minute).Truncate(time.Hour)
+		p.Start = p.End.Add(-7 * 24 * time.Hour)
+	}
 	q := r.URL.Query()
 	for k, v := range q {
 		if len(v) != 1 {
@@ -230,7 +271,10 @@ func (a *API) parse(r *http.Request) (storage.Query, error) {
 		if err != nil {
 			return p, fmt.Errorf("invalid_to")
 		}
-		p.Start = p.End.Add(-24 * time.Hour)
+		p.Start = p.End.Add(-window)
+		if association {
+			p.Start = p.End.Add(-7 * 24 * time.Hour)
+		}
 	}
 	if v := q.Get("from"); v != "" {
 		p.Start, err = time.Parse(time.RFC3339Nano, v)
@@ -238,8 +282,14 @@ func (a *API) parse(r *http.Request) (storage.Query, error) {
 			return p, fmt.Errorf("invalid_from")
 		}
 	}
-	if !p.End.After(p.Start) || p.End.Sub(p.Start) > 24*time.Hour || p.End.After(now) || p.Start.Before(now.Add(-time.Duration(a.Retention)*24*time.Hour-30*time.Second)) {
-		return p, fmt.Errorf("range_must_be_within_retained_history_and_at_most_24_hours")
+	if !p.End.After(p.Start) || p.End.Sub(p.Start) > window || p.End.After(now) || p.Start.Before(now.Add(-retention-time.Hour)) {
+		return p, fmt.Errorf("range_outside_retention_or_maximum_window")
+	}
+	if !association && p.Start.Before(now.Add(-retention-30*time.Second)) {
+		return p, fmt.Errorf("range_outside_retention_or_maximum_window")
+	}
+	if association && (!p.Start.Equal(p.Start.Truncate(time.Hour)) || !p.End.Equal(p.End.Truncate(time.Hour)) || p.End.After(now.Add(-2*time.Minute).Truncate(time.Hour))) {
+		return p, fmt.Errorf("association_range_requires_complete_UTC_hours_with_two_minute_grace")
 	}
 	if v := q.Get("limit"); v != "" {
 		p.Limit, err = strconv.Atoi(v)
@@ -268,6 +318,9 @@ func (a *API) parse(r *http.Request) (storage.Query, error) {
 	p.Kind = q.Get("eventKind")
 	if p.Kind != "" && p.Kind != "hash_announcement" && p.Kind != "full_broadcast" && p.Kind != "requested_response" && p.Kind != "historical_or_unresolved" {
 		return p, fmt.Errorf("invalid_event_kind")
+	}
+	if association && p.Kind != "" && p.Kind != "hash_announcement" && p.Kind != "full_broadcast" {
+		return p, fmt.Errorf("association_event_kind_must_be_unsolicited")
 	}
 	p.Start = p.Start.UTC()
 	p.End = p.End.UTC()

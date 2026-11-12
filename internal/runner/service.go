@@ -122,6 +122,37 @@ func runService(parent context.Context, cfg Config) (result error) {
 	var intake atomic.Bool
 	intake.Store(capture.StorageSafe(cfg.DataDir, cfg.DataBudget) == nil)
 	var workers sync.WaitGroup
+	var analysisMu sync.Mutex
+	analysisError := ""
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		timer := time.NewTimer(time.Second)
+		defer timer.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+			}
+			delay := 15 * time.Second
+			if capture.StorageSafe(cfg.DataDir, cfg.DataBudget) == nil {
+				ac, done := context.WithTimeout(ctx, 5*time.Second)
+				worked, e := db.AnalyzeNext(ac, time.Now().UTC())
+				done()
+				analysisMu.Lock()
+				analysisError = ""
+				if e != nil {
+					analysisError = e.Error()
+				}
+				analysisMu.Unlock()
+				if worked && e == nil {
+					delay = time.Second
+				}
+			}
+			timer.Reset(delay)
+		}
+	}()
 	workers.Add(1)
 	go func() {
 		defer workers.Done()
@@ -263,6 +294,7 @@ func runService(parent context.Context, cfg Config) (result error) {
 		engine.Tick(now)
 		report := engine.Report(now)
 		report["methodVersion"] = httpapi.MethodVersion
+		report["schemaVersion"] = httpapi.SchemaVersion
 		report["captureState"] = state
 		report["release"] = Release
 		report["upstreamRevision"] = UpstreamRevision
@@ -279,7 +311,13 @@ func runService(parent context.Context, cfg Config) (result error) {
 		report["storageCheckError"] = storageErr
 		report["maintenanceError"] = maintenanceErr
 		report["rawRetentionDays"] = cfg.Retention
-		report["aggregateRetentionImplemented"] = false
+		report["aggregateRetentionImplemented"] = true
+		report["aggregateRetentionDays"] = 90
+		delete(report, "rankingAvailable") // API derives availability from persisted analysis quality.
+		report["associationAnalysisImplemented"] = true
+		analysisMu.Lock()
+		report["analysisError"] = analysisError
+		analysisMu.Unlock()
 		report["schemaMigrationVersion"] = storage.SchemaVersion
 		report["configurationFingerprint"] = fingerprint
 		refs.Lock()

@@ -2,8 +2,9 @@
 
 Independent Zenon momentum collection with a read-only JSON API for
 [go-zenon-version](https://0x3639.com/go-zenon-version/).
-Release **0.2.0-collector** adds continuous collection, SQLite persistence,
-bounded reference reconciliation, retention, and HTTP. The existing Observatory
+Release **0.3.0-associations** adds cohort comparisons, delivery coverage, matched
+relay baselines, chronological holdouts and 90-day summaries to the continuous
+collector and read-only API. The existing Observatory
 and discovery service remain independent and unchanged.
 
 **A relay's advertised version is not its producer's software version.** Producer
@@ -13,16 +14,19 @@ claims are disputed and their producer address is withheld.
 
 The [original feasibility test](docs/feasibility-report.md) passed with 337 checked
 momentums seen from two peers over an hour. The collector still needs the four-peer,
-24–48 hour remote pilot in [SPEC.md](SPEC.md). Association statistics, 90-day
-aggregates, holdouts, reviewed identity assertions and dashboard integration are
-later milestones. The associations endpoint explicitly reports analysis unavailable.
+24–48 hour remote pilot in [SPEC.md](SPEC.md). Association analysis is implemented; see [method and upgrade instructions](docs/association-analysis.md).
+Remote resource/rollback acceptance, reviewed identity assertions and dashboard
+integration remain separate work. A collection uptime report does not certify
+those pilot checks or establish producer versions.
 
 ## Deploy in Coolify
 
 Use a Git-based **Docker Compose** application, repository root `/`, Compose file
 `/compose.yaml`, one replica. Save/load the definition after upgrading.
 
-Let the old experiment finish before redeploying. Keep its volume, `OBSERVER_ID`,
+Before upgrading 0.2.0, run `observer backup pre-associations-2026-11-11.sqlite`
+in the current container Terminal. Schema 2 needs this backup for rollback to 0.2.0.
+Keep the volume, `OBSERVER_ID`,
 peer seeds and traffic limits. Update these environment variables:
 
 ```dotenv
@@ -69,7 +73,7 @@ Coolify build server. Images can be built elsewhere and deployed by registry dig
 | `/api/v1/momentums` | Checked headers, producer addresses and verification |
 | `/api/v1/momentums/{hash}/arrivals` | Original per-peer arrival evidence |
 | `/api/v1/pillars/{address}` | Dated name snapshots and observed momentums |
-| `/api/v1/associations` | Explicit unavailable result until analysis is implemented |
+| `/api/v1/associations` | Cohort-specific relay comparisons, daily views, baselines and holdouts |
 
 [API guide](docs/api.md) · [OpenAPI](docs/openapi.json) ·
 [Interpretation guidance](docs/interpretation.json)
