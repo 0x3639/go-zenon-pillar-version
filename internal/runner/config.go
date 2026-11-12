@@ -12,7 +12,7 @@ import (
 )
 
 const UpstreamRevision = "bb39e31c608dc397a91b98b21b096bca99a9f4d6"
-const Release = "0.3.0-associations"
+const Release = "0.3.1-associations"
 
 type Config struct {
 	ObserverID      string

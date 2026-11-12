@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Zenon P2P Observer",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "Read-only collection and relay-association API. See api.md and association-analysis.md. Producer software versions remain null. Raw windows: at most 24 hours within raw retention. Associations: complete UTC hours, default seven days, up to 90 days within aggregate retention. GET/HEAD/OPTIONS only; bodies rejected; 1 MiB response limit. Collections cache 30 seconds with ETags."
   },
   "servers": [
@@ -112,7 +112,8 @@
           "503": {
             "description": "Storage or query capacity unavailable"
           }
-        }
+        },
+        "description": "Operational snapshot; result.associationSummariesAvailable is the summary-availability flag. Deprecated result.rankingAvailable has the same meaning, not threshold qualification."
       },
       "head": {
         "summary": "GET headers without body",
@@ -1054,7 +1055,8 @@
           "503": {
             "description": "Storage or query capacity unavailable"
           }
-        }
+        },
+        "description": "Association windows use complete UTC hours. If none are present, associationWindowStart and associationWindowEnd are null and associationSummary.reason is no_complete_hours."
       },
       "head": {
         "summary": "GET headers without body",
@@ -1452,7 +1454,7 @@
             "format": "date-time"
           },
           "methodVersion": {
-            "const": "association-1"
+            "const": "association-2"
           },
           "dataQuality": {
             "$ref": "#/components/schemas/DataQuality"
@@ -1466,7 +1468,9 @@
         "type": "object",
         "properties": {
           "rankingsAvailable": {
-            "type": "boolean"
+            "type": "boolean",
+            "deprecated": true,
+            "description": "Alias of associationSummariesAvailable. Current-method summary rows exist and chain continuity is resolved. This does not indicate that any row meets sample/day thresholds or holdout criteria."
           },
           "producerSoftwareVersion": {
             "type": "null"
@@ -1501,6 +1505,14 @@
           },
           "aggregateRetentionDays": {
             "const": 90
+          },
+          "associationSummariesAvailable": {
+            "type": "boolean",
+            "description": "Current-method summary rows exist and chain continuity is resolved. This does not indicate that any row meets sample/day thresholds or holdout criteria."
+          },
+          "analysisRetryingHours": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "additionalProperties": true
@@ -2122,7 +2134,19 @@
             "type": "null"
           },
           "methodVersion": {
-            "const": "association-1"
+            "const": "association-2"
+          },
+          "retryingHours": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Pending hours with a future retry time; subset of pendingHours."
+          },
+          "excludedHoursByReason": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Whole-hour exclusions, distinct from per-comparison counts."
           }
         }
       }

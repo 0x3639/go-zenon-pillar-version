@@ -2,7 +2,7 @@ name: zenon-p2p-observer
 services:
   observer:
     build: .
-    image: zenon-p2p-observer:0.3.0
+    image: zenon-p2p-observer:0.3.1
     environment:
       DATA_DIR: /data
       GOMEMLIMIT: 320MiB

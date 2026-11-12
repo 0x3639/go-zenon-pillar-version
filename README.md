@@ -2,7 +2,7 @@
 
 Independent Zenon momentum collection with a read-only JSON API for
 [go-zenon-version](https://0x3639.com/go-zenon-version/).
-Release **0.3.0-associations** adds cohort comparisons, delivery coverage, matched
+Release **0.3.1-associations** adds cohort comparisons, delivery coverage, matched
 relay baselines, chronological holdouts and 90-day summaries to the continuous
 collector and read-only API. The existing Observatory
 and discovery service remain independent and unchanged.
@@ -24,8 +24,10 @@ those pilot checks or establish producer versions.
 Use a Git-based **Docker Compose** application, repository root `/`, Compose file
 `/compose.yaml`, one replica. Save/load the definition after upgrading.
 
-Before upgrading 0.2.0, run `observer backup pre-associations-2026-11-11.sqlite`
-in the current container Terminal. Schema 2 needs this backup for rollback to 0.2.0.
+Before upgrading, run `observer backup pre-0.3.1-2026-11-11.sqlite`
+in the current container Terminal. Schema 3 upgrades both schema 1 and schema 2.
+Returning to an older release requires its matching backup. See the
+[0.3.1 corrections](docs/association-corrections.md).
 Keep the volume, `OBSERVER_ID`,
 peer seeds and traffic limits. Update these environment variables:
 

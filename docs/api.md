@@ -36,12 +36,17 @@ is `determined_by_comparison_window`. Duplicate counts saturate at 65,535 and ar
 `/api/v1/pillars/{address}` returns `nameSnapshots`, `momentums`, their separate next
 offsets, cohort association rows with a separate `associationsNextOffset`, and an
 empty assertions array. Association windows are narrowed to complete UTC hours
-inside the raw query range and reported separately. `associationSummary` carries
+inside the raw query range and reported separately. If the request contains no
+complete hour, both association window bounds are null and the reason is
+`no_complete_hours`. `associationSummary` carries
 coverage/exclusions; `associationAnalysisAvailable` describes that window. Names
 are dated snapshots, not retrospective producing-address assignments.
 
 `/api/v1/associations` returns `available`, `data`, `nextOffset`, `computedAt`,
-`processedHours`, `pendingHours`, `missingHours`, and `excludedComparisonsByReason`.
+`processedHours`, `pendingHours`, `retryingHours`, `missingHours`,
+`excludedComparisonsByReason`, and `excludedHoursByReason`. The latter identifies
+whole hours excluded by bounds or unavailable raw evidence; the older combined
+map also retains those entries for compatibility.
 Rows include comparable counts, strict-first share, delivery coverage, ties, exact
 median/p95 relative delays, historical IP/version, cohort/session IDs, UTC-day
 breakdowns, matched other-producer baselines and a chronological holdout.
@@ -92,7 +97,10 @@ capture visibly paused. Consult `/api/v1/status` for collection health.
 Data quality includes drops/clock jumps in overlapping runs, interrupted runs,
 retention and analysis availability. Run-level counts conservatively cover the
 entire overlapping run, not exact subwindows. Association data quality also reports
-implementation/build status and completed/pending hour counts. A run with capture
+implementation/build status and completed/pending/retrying hour counts.
+`associationSummariesAvailable` means current-method rows exist and chain continuity
+is resolved; `rankingsAvailable` and status `rankingAvailable` are deprecated aliases.
+Availability does not imply the per-row sample or day thresholds have been met. A run with capture
 loss, clock jumps, or unclean shutdown is conservatively excluded from comparisons. Missing observations do not imply
 offline peers/pillars. Legacy feasibility JSONL is not imported.
 

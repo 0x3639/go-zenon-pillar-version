@@ -1,6 +1,6 @@
-# Association analysis, method association-1
+# Association analysis, method association-2
 
-Release 0.3.0 adds relay comparisons, hourly summaries retained for 90 days, and
+Release 0.3.1 provides relay comparisons, hourly summaries retained for 90 days, and
 chronological holdouts. It does not identify a relay as the producer or establish
 which software a pillar runs. All `producerSoftwareVersion` values remain null.
 An `observed_relay_association` label is a sample-size label, including negative
@@ -12,29 +12,35 @@ In the current Coolify container Terminal, create a consistent backup before
 upgrading:
 
 ```sh
-observer backup pre-associations-2026-11-11.sqlite
+observer backup pre-0.3.1-2026-11-11.sqlite
 ```
 
 Keep the volume, observer ID, peer seeds, and environment settings. Deploy the
-0.3.0 source through the existing Compose application. Port 8080 and the public
+0.3.1 source through the existing Compose application. Port 8080 and the public
 API domain remain the same. Responses advertise `schemaVersion=1.1` and
-`methodVersion=association-1`; raw `rankingEligible` is now null with an explicit
+`methodVersion=association-2`; raw `rankingEligible` is now null with an explicit
 window-dependent reason. Clients that strictly check schema versions need to accept
-1.1. SQLite migrates schema 1 to 2 without rewriting arrival
+1.1. SQLite migrates schema 1 or 2 to 3 without rewriting arrival
 clocks or changing the P2P identity. To return to 0.2.0, restore the compatible
-backup with the service stopped; 0.2.0 cannot open schema 2.
+backup with the service stopped; older releases cannot open schema 3.
 
 The worker automatically replays retained complete hours, oldest first. No manual
 analysis command is required. It processes one hour at a time with a five-second
 work deadline and a one-second pause between successful hours. Idle/error retries
-wait 15 seconds. Storage pressure pauses analysis. API reads and collection continue
+wait 15 seconds. A transiently failing hour receives its own persisted retry delay
+(30 seconds doubling to 15 minutes), so subsequent hours can proceed. Deterministic
+run/session/arrival/part bound failures become explicit excluded hours; no partial
+statistics are published. New source evidence clears that hour’s retry delay. Storage pressure pauses analysis. API reads and collection continue
 independently; analysis errors appear as `result.analysisError` in status.
 
 Check `/api/v1/status`: `dataQuality.analysisState` is `building`, `ready`,
 `awaiting_complete_hour`, or `chain_continuity_unresolved`. Completed/pending-hour
 counts describe all retained completed hours. The association endpoint reports its
 own window's `processedHours`, `pendingHours`, `missingHours`, exclusions and
-`computedAt`. Missing hours are unknown coverage, not zero observations or proof
+`computedAt`. `retryingHours` is a subset of pending hours.
+`excludedHoursByReason` distinguishes bound/expired-history exclusions from counts
+of individual comparisons (also retained in the older combined exclusion map for
+compatibility). Missing hours are unknown coverage, not zero observations or proof
 that any peer or pillar was offline. Dirty hours are withheld until recomputed.
 
 `GET /api/v1/associations?limit=25` returns the last seven complete days by default,
@@ -61,7 +67,11 @@ implicitly. Only still-retained raw observations are replayed.
    within five milliseconds of that minimum as ties. A tie gives no strict first
    win; `tieCount` and `tieShare` are separate. Millisecond output does not establish
    sub-millisecond measurement accuracy.
-4. Every cohort member contributes to `eligibleCount`, including members that did
+4. A checked live anchor observed only by a warming-up peer still supplies a
+   comparison when every eligible peer misses delivery. Its slot must be within
+   the original live interval (no more than 120 seconds old or 10 seconds ahead);
+   this prevents old catch-up announcements from becoming false missed deliveries.
+   Every cohort member contributes to `eligibleCount`, including members that did
    not deliver. `sampleCount` equals this comparable denominator. `receivedCount`
    counts deliveries; coverage is received/eligible. Strict first share is
    first/eligible. Missing deliveries contribute no delay value. Median uses the
@@ -117,8 +127,11 @@ an early hypothesis on later data. One observer location cannot remove routing b
 
 Hourly sufficient statistics retain counts, exact delay samples, baseline counts,
 cohort sessions, historical IP/version segments and dated name labels for 90 days.
-Daily views are derived from those hours. Supporting headers and sessions remain
-while their summaries reference them. `rawEvidenceAvailable=false` means some
+Daily views are derived from those hours. Supporting headers and exact session IDs
+remain while retained summaries reference them. Other sessions from the same boot
+follow normal raw retention. Schema 3 initializes these references from existing
+cohort membership and invalidates every association-1 summary for replay. Raw
+history that has already expired is withheld rather than relabeled as association-2. `rawEvidenceAvailable=false` means some
 contributing hours are outside raw retention; exact historical recomputation is unavailable.
 A detected deeper dispute invalidates summaries using retained headers. If replay
 requires expired arrivals, the hour is withheld with `raw_history_expired`.

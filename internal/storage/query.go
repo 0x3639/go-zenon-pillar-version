@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/0x3639/go-zenon-pillar-version/internal/analysis"
 	"time"
 )
 
@@ -133,9 +134,13 @@ func (s *Store) Quality(ctx context.Context, start, end time.Time) (map[string]a
 	if err != nil {
 		return nil, err
 	}
-	var completed, pending int
-	err = s.read.QueryRowContext(ctx, `SELECT coalesce(sum(revision=computed_revision),0),coalesce(sum(revision<>computed_revision),0) FROM association_hours WHERE hour+3600<=?`, time.Now().Add(-2*time.Minute).Unix()).Scan(&completed, &pending)
+	var completed, pending, retrying int
+	err = s.read.QueryRowContext(ctx, `SELECT coalesce(sum(revision=computed_revision),0),coalesce(sum(revision<>computed_revision),0),coalesce(sum(revision<>computed_revision AND retry_after>?),0) FROM association_hours WHERE hour+3600<=?`, time.Now().Unix(), time.Now().Add(-2*time.Minute).Unix()).Scan(&completed, &pending, &retrying)
 	if err != nil {
+		return nil, err
+	}
+	var summaries bool
+	if err = s.read.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM association_parts p JOIN association_hours h ON h.hour=p.hour WHERE h.revision=h.computed_revision)`).Scan(&summaries); err != nil {
 		return nil, err
 	}
 	state := "ready"
@@ -149,7 +154,7 @@ func (s *Store) Quality(ctx context.Context, start, end time.Time) (map[string]a
 		state = "chain_continuity_unresolved"
 	}
 	return map[string]any{"captureDropsInOverlappingRuns": drops, "clockJumpsInOverlappingRuns": jumps, "interruptedRuns": unclean, "recordedGapAndConnectionEvents": gaps,
-		"rankingsAvailable": completed > 0 && !continuity, "analysisState": state, "associationAnalysisImplemented": true, "analysisProcessedHours": completed, "analysisPendingHours": pending, "aggregateRetentionDays": 90, "associationMethodVersion": "association-1",
+		"rankingsAvailable": summaries && !continuity, "associationSummariesAvailable": summaries && !continuity, "analysisState": state, "associationAnalysisImplemented": true, "analysisProcessedHours": completed, "analysisPendingHours": pending, "analysisRetryingHours": retrying, "aggregateRetentionDays": 90, "associationMethodVersion": analysis.Method,
 		"producerSoftwareVersion": nil, "consensusValidated": false, "absenceMeansOffline": false,
 		"rawRetentionDays": s.retention, "rawHistoryAvailableFrom": time.Now().UTC().Truncate(30 * time.Second).Add(-time.Duration(s.retention) * 24 * time.Hour),
 		"legacyFeasibilityImported": false}, err
